@@ -225,15 +225,21 @@ struct DramaPage {
           GridItem() {
             this.DramaCard(drama)
           }
-        }, (drama: Drama) => drama.movie.title + this.dramaRefreshKey.toString() + this.isManageMode.toString()) // 加入 key 刷新机制
+          // 防止某些卡片高度不一致导致上下错位，强制顶部对齐
+          .align(Alignment.Top)
+        }, (drama: Drama) => drama.movie.title + this.dramaRefreshKey.toString() + this.isManageMode.toString())
       }
       .columnsTemplate('1fr 1fr')
       .columnsGap(Spacing.md)
       .rowsGap(Spacing.md)
-      .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.lg, bottom: 80 }) // 底部留白防止被删除按钮遮挡
+      .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.lg, bottom: 80 })
+      // 【核心修复】：强制 Grid 占满整个 Scroll 的宽度
+      .width('100%')
     }
     .layoutWeight(1)
     .scrollBar(BarState.Off)
+    // 确保 Scroll 内部内容整体靠上显示
+    .align(Alignment.TopStart)
   }
 
   private getPosterResource(name: string): Resource | string {
@@ -272,15 +278,23 @@ struct DramaPage {
   @Builder
   DramaCard(drama: Drama) {
     Column() {
+      // 1. 图片与标签层（紧贴顶部）
       Stack({ alignContent: Alignment.TopEnd }) {
         Image(this.getPosterResource(drama.movie.posterUrl))
           .width('100%')
           .height(160)
-          .borderRadius(BorderRadius.large)
+          // 【修改点】：只保留顶部两个圆角，底部直角，这样能完美贴合卡片边缘
+          .borderRadius({
+            topLeft: BorderRadius.large,
+            topRight: BorderRadius.large,
+            bottomLeft: 0,
+            bottomRight: 0
+          })
           .objectFit(ImageFit.Cover)
+          // 【附加优化】：如果海报太长被截断，加这行能让画面从“顶部”开始裁剪，防止人物切头
+          .align(Alignment.Top)
           .backgroundColor('#E0E0E0')
 
-        // ========== 修改：管理模式显示复选框，非管理模式显示状态标签 ==========
         if (this.isManageMode) {
           Row() {
             if (this.selectedDramas.includes(drama)) {
@@ -292,7 +306,7 @@ struct DramaPage {
           }
           .width(22)
           .height(22)
-          .margin(6)
+          .margin(8) // 稍微加大一点 margin，因为现在紧贴边缘了
           .borderRadius(11)
           .border({ width: 1.5, color: Color.White })
           .backgroundColor(this.selectedDramas.includes(drama) ? Colors.primary : 'rgba(0,0,0,0.3)')
@@ -307,58 +321,64 @@ struct DramaPage {
         }
       }
 
-      Text(drama.movie.title)
-        .fontSize(FontSizes.caption)
-        .fontColor(Colors.textPrimary)
-        .margin({ top: Spacing.sm })
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      // 2. 文字和进度条区域（单独包裹并加上内边距）
+      Column() {
+        Text(drama.movie.title)
+          .fontSize(FontSizes.caption)
+          .fontColor(Colors.textPrimary)
+          .margin({ top: Spacing.sm })
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-      Row({ space: 4 }) {
-        ForEach(drama.movie.platform.slice(0, 2), (p: string) => {
-          Text(p)
-            .fontSize(10)
-            .fontColor(Colors.textSecondary)
-        })
-      }
-      .margin({ top: 2 })
-
-      if (drama.status === 'watching') {
-        Column() {
-          Row() {
-            Text('更新至' + drama.currentEpisode + '/' + drama.totalEpisodes + '集')
-              .fontSize(FontSizes.helper)
+        Row({ space: 4 }) {
+          ForEach(drama.movie.platform.slice(0, 2), (p: string) => {
+            Text(p)
+              .fontSize(10)
               .fontColor(Colors.textSecondary)
+          })
+        }
+        .margin({ top: 2 })
+        .width('100%')
+
+        if (drama.status === 'watching') {
+          Column() {
+            Row() {
+              Text('更新至' + drama.currentEpisode + '/' + drama.totalEpisodes + '集')
+                .fontSize(FontSizes.helper)
+                .fontColor(Colors.textSecondary)
+            }
+            .width('100%')
+            .margin({ bottom: 4 })
+
+            Stack() {
+              Row()
+                .width('100%')
+                .height(4)
+                .backgroundColor('#E0E0E0')
+                .borderRadius(2)
+
+              Row()
+                .width(drama.watchProgress + '%')
+                .height(4)
+                .backgroundColor(Colors.primary)
+                .borderRadius(2)
+            }
+            .alignContent(Alignment.Start) // 确保进度条从左边开始
           }
           .width('100%')
-          .margin({ bottom: 4 })
-
-          Stack() {
-            Row()
-              .width('100%')
-              .height(4)
-              .backgroundColor('#E0E0E0')
-              .borderRadius(2)
-
-            Row()
-              .width(drama.watchProgress + '%')
-              .height(4)
-              .backgroundColor(Colors.primary)
-              .borderRadius(2)
-          }
+          .margin({ top: Spacing.sm })
         }
-        .width('100%')
-        .margin({ top: Spacing.sm })
       }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+      .padding({ left: Spacing.sm, right: Spacing.sm, bottom: Spacing.sm }) // 【修改点】：把外层的边距移到这里，保护文字
     }
     .width('100%')
     .backgroundColor(Color.White)
     .borderRadius(BorderRadius.large)
-    .padding(Spacing.sm)
-    // ========== 新增：卡片点击事件 ==========
+    // .padding(Spacing.sm) <--- 【修改点】：删掉了这里的全局 padding，让图片能碰到边缘
     .onClick(() => {
       if (this.isManageMode) {
-        // 管理模式下：选中/取消选中
         const isSelected = this.selectedDramas.includes(drama)
         if (isSelected) {
           this.selectedDramas = this.selectedDramas.filter(d => d !== drama)
