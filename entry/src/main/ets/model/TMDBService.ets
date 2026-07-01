@@ -155,6 +155,56 @@ export class TMDBService {
     return JSON.parse(result) as TMDBVideosResponse
   }
 
+  // 获取预告片URL（优先官方YouTube预告片）
+  async getTrailerUrl(mediaId: number, mediaType: string): Promise<string> {
+    let videosRes: TMDBVideosResponse
+    if (mediaType === 'movie') {
+      videosRes = await this.getMovieVideos(mediaId)
+    } else {
+      videosRes = await this.getTvVideos(mediaId)
+    }
+
+    const videos: TMDBVideo[] = videosRes.results
+    if (!videos || videos.length === 0) {
+      throw new Error('没有找到预告片')
+    }
+
+    let bestVideo: TMDBVideo | null = null
+    for (let i: number = 0; i < videos.length; i++) {
+      const v: TMDBVideo = videos[i]
+      if (v.site === 'YouTube' && v.type === 'Trailer' && v.official) {
+        bestVideo = v
+        break
+      }
+    }
+
+    if (!bestVideo) {
+      for (let i: number = 0; i < videos.length; i++) {
+        const v: TMDBVideo = videos[i]
+        if (v.site === 'YouTube' && v.type === 'Trailer') {
+          bestVideo = v
+          break
+        }
+      }
+    }
+
+    if (!bestVideo) {
+      for (let i: number = 0; i < videos.length; i++) {
+        const v: TMDBVideo = videos[i]
+        if (v.site === 'YouTube') {
+          bestVideo = v
+          break
+        }
+      }
+    }
+
+    if (!bestVideo) {
+      throw new Error('没有找到可用的预告片')
+    }
+
+    return `https://www.youtube.com/watch?v=${bestVideo.key}`
+  }
+
   // ==================== 搜索 ====================
 
   // 综合搜索

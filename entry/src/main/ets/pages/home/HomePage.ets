@@ -19,6 +19,7 @@ struct HomePage {
   @State private hasError: boolean = false
   @State private errorMsg: string = ''
   @State private useMockData: boolean = false
+  @State private isLoadingTrailer: boolean = false
   private tmdbService: TMDBService | null = null
 
   aboutToAppear(): void {
@@ -74,14 +75,40 @@ struct HomePage {
     this.loadAllData()
   }
 
-  private navigateToPlayer(media: TMDBMedia): void {
+  private async navigateToPlayer(media: TMDBMedia): Promise<void> {
+    if (this.isLoadingTrailer) {
+      return
+    }
+
+    this.isLoadingTrailer = true
+
     try {
       let videoUrl: string | Resource = ''
-      if (media.trailer_url !== undefined && media.trailer_url !== null) {
-        videoUrl = media.trailer_url
+      const mediaType: string = media.media_type || (media.title ? 'movie' : 'tv')
+
+      if (!this.useMockData && this.tmdbService) {
+        try {
+          console.info('TMDB 正在获取预告片: ' + getMediaTitle(media) + ', id=' + media.id + ', type=' + mediaType)
+          const trailerUrl: string = await this.tmdbService.getTrailerUrl(media.id, mediaType)
+          console.info('TMDB 获取预告片成功: ' + trailerUrl)
+          videoUrl = trailerUrl
+        } catch (trailerErr) {
+          const err = trailerErr as Error
+          console.warn('TMDB 获取预告片失败，使用备用: ' + err.message)
+          if (media.trailer_url !== undefined && media.trailer_url !== null) {
+            videoUrl = media.trailer_url
+          } else {
+            videoUrl = getTestVideoUrl(media.id)
+          }
+        }
       } else {
-        videoUrl = getTestVideoUrl(media.id)
+        if (media.trailer_url !== undefined && media.trailer_url !== null) {
+          videoUrl = media.trailer_url
+        } else {
+          videoUrl = getTestVideoUrl(media.id)
+        }
       }
+
       router.pushUrl({
         url: 'pages/home/VideoPlayerPage',
         params: {
@@ -96,6 +123,8 @@ struct HomePage {
       hilog.info(0, TAG, `Navigate to player: ${getMediaTitle(media)}`)
     } catch (err) {
       hilog.error(0, TAG, 'Failed to navigate to player')
+    } finally {
+      this.isLoadingTrailer = false
     }
   }
 
