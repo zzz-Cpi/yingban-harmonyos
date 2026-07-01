@@ -291,10 +291,7 @@ struct MinePage {
         .color('#E0E0E0')
         .margin({ left: Spacing.lg, right: Spacing.lg })
 
-      Text('数据来源 TMDB ')
-        .fontSize(FontSizes.helper)
-        .fontColor(Colors.textTertiary)
-        .margin({ top: Spacing.md })
+
 
       Text('影伴 v1.0.0')
         .fontSize(FontSizes.helper)

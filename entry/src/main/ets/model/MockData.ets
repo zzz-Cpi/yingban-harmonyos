@@ -47,7 +47,27 @@ export interface TheaterRoom {
   maxMember: number
   status: string
   movieTitle?: string
+  moviePoster?: string
   createdTime: number
+}
+
+// 房间成员
+export interface RoomMember {
+  id: string
+  name: string
+  avatar: string
+  isHost: boolean
+  isOnline: boolean
+}
+
+// 聊天消息
+export interface ChatMessage {
+  id: string
+  userId: string
+  userName: string
+  content: string
+  timestamp: number
+  type: string
 }
 
 // 观影笔记
@@ -168,7 +188,8 @@ export function createTheaterRoom(
   maxMember: number,
   status: string,
   createdTime: number,
-  movieTitle?: string
+  movieTitle?: string,
+  moviePoster?: string
 ): TheaterRoom {
   const r: TheaterRoom = {
     id: id,
@@ -178,6 +199,7 @@ export function createTheaterRoom(
     maxMember: maxMember,
     status: status,
     movieTitle: movieTitle,
+    moviePoster: moviePoster,
     createdTime: createdTime
   }
   return r
@@ -353,13 +375,43 @@ export const mockPlaylists: Playlist[] = getMockPlaylists()
 function getMockRooms(): TheaterRoom[] {
   const list: TheaterRoom[] = []
   list.push(createTheaterRoom('room001', '庆余年追剧团', '小李', 3, 8, 'waiting',
-    Date.now() - 10 * 60 * 1000))
+    Date.now() - 10 * 60 * 1000, '', ''))
   list.push(createTheaterRoom('room002', '繁花观影会', '阿明', 5, 6, 'playing',
-    Date.now() - 30 * 60 * 1000, '繁花'))
+    Date.now() - 30 * 60 * 1000, '繁花', poster('fanhua')))
+  list.push(createTheaterRoom('room003', '我的阿勒泰治愈局', '小雨', 2, 4, 'waiting',
+    Date.now() - 5 * 60 * 1000, '', ''))
+  list.push(createTheaterRoom('room004', '狂飙二刷走起', '强哥', 6, 8, 'playing',
+    Date.now() - 45 * 60 * 1000, '狂飙', poster('kuangbiao')))
   return list
 }
 
 export const mockRooms: TheaterRoom[] = getMockRooms()
+
+function getMockRoomMembers(): RoomMember[] {
+  const list: RoomMember[] = []
+  list.push({ id: 'u001', name: '阿明', avatar: '', isHost: true, isOnline: true })
+  list.push({ id: 'u002', name: '小李', avatar: '', isHost: false, isOnline: true })
+  list.push({ id: 'u003', name: '小雨', avatar: '', isHost: false, isOnline: true })
+  list.push({ id: 'u004', name: '强哥', avatar: '', isHost: false, isOnline: true })
+  list.push({ id: 'u005', name: '追剧少年', avatar: '', isHost: false, isOnline: true })
+  list.push({ id: 'u006', name: '电影迷', avatar: '', isHost: false, isOnline: false })
+  return list
+}
+
+export const mockRoomMembers: RoomMember[] = getMockRoomMembers()
+
+function getMockChatMessages(): ChatMessage[] {
+  const list: ChatMessage[] = []
+  list.push({ id: 'm001', userId: 'u001', userName: '阿明', content: '大家好，今天我们一起看繁花～', timestamp: Date.now() - 30 * 60 * 1000, type: 'text' })
+  list.push({ id: 'm002', userId: 'u002', userName: '小李', content: '来啦来啦！', timestamp: Date.now() - 28 * 60 * 1000, type: 'text' })
+  list.push({ id: 'm003', userId: 'u003', userName: '小雨', content: '这个剧我二刷了，超好看', timestamp: Date.now() - 25 * 60 * 1000, type: 'text' })
+  list.push({ id: 'm004', userId: 'u001', userName: '阿明', content: '我开始播放啦', timestamp: Date.now() - 20 * 60 * 1000, type: 'system' })
+  list.push({ id: 'm005', userId: 'u004', userName: '强哥', content: '这一段演得太好了', timestamp: Date.now() - 10 * 60 * 1000, type: 'text' })
+  list.push({ id: 'm006', userId: 'u005', userName: '追剧少年', content: '爷青回！', timestamp: Date.now() - 5 * 60 * 1000, type: 'text' })
+  return list
+}
+
+export const mockChatMessages: ChatMessage[] = getMockChatMessages()
 
 function getMockCategories(): Category[] {
   const list: Category[] = []
