@@ -2,7 +2,8 @@
   "src": [
     "pages/Index",
     "pages/theater/RoomDetailPage",
-    "pages/VideoPlayerPage",
-    "pages/SearchPage"
+    "pages/home/VideoPlayerPage",
+    "pages/home/SearchPage",
+    "pages/home/LibraryPage"
   ]
 }

@@ -1,6 +1,6 @@
 // 追剧页 - 多平台追剧管理
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../utils/Constants'
-import { mockDramas, mockPlaylists, Drama, Playlist } from '../model/MockData'
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../../utils/Constants'
+import { mockDramas, mockPlaylists, Drama, Playlist } from '../../model/MockData'
 
 @Component
 struct DramaPage {

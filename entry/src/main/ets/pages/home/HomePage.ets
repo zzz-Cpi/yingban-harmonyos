@@ -1,8 +1,8 @@
 // 首页 - 内容发现入口（对接TMDB真实API，失败时降级到Mock数据）
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../utils/Constants'
-import { mockCategories, Category, mockNowPlaying, mockTrending, mockPopularMovies, mockOnAirTv } from '../model/MockData'
-import { getTMDBService, TMDBService } from '../model/TMDBService'
-import { TMDBMedia, getImageUrl, getMediaTitle, getMediaYear, getTestVideoUrl } from '../model/TMDBTypes'
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../../utils/Constants'
+import { mockCategories, Category, mockNowPlaying, mockTrending, mockPopularMovies, mockOnAirTv } from '../../model/MockData'
+import { getTMDBService, TMDBService } from '../../model/TMDBService'
+import { TMDBMedia, getImageUrl, getMediaTitle, getMediaYear, getTestVideoUrl, TMDBListResponse } from '../../model/TMDBTypes'
 import router from '@ohos.router'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
@@ -44,10 +44,10 @@ struct HomePage {
       }
 
       // 顺序加载所有数据
-      const nowPlayingRes = await this.tmdbService.getNowPlayingMovies(1)
-      const trendingRes = await this.tmdbService.getTrending(1)
-      const popularRes = await this.tmdbService.getPopularMovies(1)
-      const tvRes = await this.tmdbService.getOnTheAirTv(1)
+      const nowPlayingRes: TMDBListResponse = await this.tmdbService.getNowPlayingMovies(1)
+      const trendingRes: TMDBListResponse = await this.tmdbService.getTrending(1)
+      const popularRes: TMDBListResponse = await this.tmdbService.getPopularMovies(1)
+      const tvRes: TMDBListResponse = await this.tmdbService.getOnTheAirTv(1)
 
       this.nowPlaying = nowPlayingRes.results.slice(0, 6)
       this.trending = trendingRes.results.slice(0, 8)
@@ -272,7 +272,7 @@ struct HomePage {
       .padding({ left: 12, right: 12 })
       .onClick(() => {
         try {
-          router.pushUrl({ url: 'pages/SearchPage' })
+          router.pushUrl({ url: 'pages/home/SearchPage' })
         } catch (err) {
           hilog.error(0, TAG, 'Navigate to search failed')
         }
@@ -444,6 +444,16 @@ struct HomePage {
                 .fontColor(Colors.textPrimary)
                 .margin({ top: Spacing.sm })
             }
+            .onClick(() => {
+              try {
+                router.pushUrl({
+                  url: 'pages/LibraryPage',
+                  params: { categoryId: cat.id }
+                })
+              } catch (err) {
+                hilog.error(0, TAG, 'Navigate to library failed')
+              }
+            })
           })
         }
       }

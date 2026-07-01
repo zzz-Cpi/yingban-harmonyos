@@ -1,5 +1,5 @@
-import { Colors, Spacing, BorderRadius, Shadows, FontSizes, FontWeightValue } from '../utils/Constants'
-import { RoomManagerService, Room } from '../distributed/RoomManagerService'
+import { Colors, Spacing, BorderRadius, Shadows, FontSizes, FontWeightValue } from '../../utils/Constants'
+import { RoomManagerService, Room } from '../../distributed/RoomManagerService'
 import router from '@ohos.router'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 

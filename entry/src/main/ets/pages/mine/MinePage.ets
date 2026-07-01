@@ -1,6 +1,6 @@
 // 我的页 - 个人数据中心
-import { Colors, Spacing, BorderRadius, Shadows, FontSizes, FontWeightValue } from '../utils/Constants'
-import { mockUser, mockNotes, Note } from '../model/MockData'
+import { Colors, Spacing, BorderRadius, Shadows, FontSizes, FontWeightValue } from '../../utils/Constants'
+import { mockUser, mockNotes, Note } from '../../model/MockData'
 
 @Component
 struct MinePage {

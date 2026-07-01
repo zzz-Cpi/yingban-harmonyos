@@ -1,4 +1,4 @@
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../utils/Constants'
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../../utils/Constants'
 import router from '@ohos.router'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 

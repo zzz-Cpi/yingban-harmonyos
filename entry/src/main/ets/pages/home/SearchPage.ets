@@ -1,6 +1,6 @@
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../utils/Constants'
-import { mockNowPlaying, mockTrending, mockPopularMovies, mockOnAirTv } from '../model/MockData'
-import { TMDBMedia, getMediaTitle, getMediaYear } from '../model/TMDBTypes'
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../../utils/Constants'
+import { mockAllMedia } from '../../model/MockData'
+import { TMDBMedia, getMediaTitle, getMediaYear } from '../../model/TMDBTypes'
 import router from '@ohos.router'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
@@ -20,25 +20,7 @@ struct SearchPage {
   }
 
   private loadAllMedia(): void {
-    const set: Set<number> = new Set()
-    const result: TMDBMedia[] = []
-
-    const addUnique = (list: TMDBMedia[]): void => {
-      for (let i = 0; i < list.length; i++) {
-        const item = list[i]
-        if (!set.has(item.id)) {
-          set.add(item.id)
-          result.push(item)
-        }
-      }
-    }
-
-    addUnique(mockNowPlaying.results)
-    addUnique(mockTrending.results)
-    addUnique(mockPopularMovies.results)
-    addUnique(mockOnAirTv.results)
-
-    this.allMedia = result
+    this.allMedia = mockAllMedia
   }
 
   private doSearch(): void {
@@ -79,7 +61,7 @@ struct SearchPage {
         videoUrl = media.trailer_url
       }
       router.pushUrl({
-        url: 'pages/VideoPlayerPage',
+        url: 'pages/home/VideoPlayerPage',
         params: {
           videoUrl: videoUrl,
           title: getMediaTitle(media),

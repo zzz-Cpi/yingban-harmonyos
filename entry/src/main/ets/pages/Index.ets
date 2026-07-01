@@ -1,8 +1,8 @@
 // 主入口页面 - 包含底部Tab导航
-import HomePage from './HomePage'
-import DramaPage from './DramaPage'
-import TheaterPage from './TheaterPage'
-import MinePage from './MinePage'
+import HomePage from './home/HomePage'
+import DramaPage from './drama/DramaPage'
+import TheaterPage from './theater/TheaterPage'
+import MinePage from './mine/MinePage'
 
 @Entry
 @Component
