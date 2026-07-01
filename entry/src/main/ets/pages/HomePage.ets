@@ -2,7 +2,11 @@
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../utils/Constants'
 import { mockCategories, Category, mockNowPlaying, mockTrending, mockPopularMovies, mockOnAirTv } from '../model/MockData'
 import { getTMDBService, TMDBService } from '../model/TMDBService'
-import { TMDBMedia, getImageUrl, getMediaTitle, getMediaYear } from '../model/TMDBTypes'
+import { TMDBMedia, getImageUrl, getMediaTitle, getMediaYear, getTestVideoUrl } from '../model/TMDBTypes'
+import router from '@ohos.router'
+import { hilog } from '@kit.PerformanceAnalysisKit'
+
+const TAG = 'HomePage'
 
 @Component
 struct HomePage {
@@ -68,6 +72,31 @@ struct HomePage {
 
   private refreshRecommendations(): void {
     this.loadAllData()
+  }
+
+  private navigateToPlayer(media: TMDBMedia): void {
+    try {
+      let videoUrl: string | Resource = ''
+      if (media.trailer_url !== undefined && media.trailer_url !== null) {
+        videoUrl = media.trailer_url
+      } else {
+        videoUrl = getTestVideoUrl(media.id)
+      }
+      router.pushUrl({
+        url: 'pages/VideoPlayerPage',
+        params: {
+          videoUrl: videoUrl,
+          title: getMediaTitle(media),
+          posterUrl: media.poster_path,
+          rating: media.vote_average,
+          year: getMediaYear(media),
+          overview: media.overview
+        }
+      })
+      hilog.info(0, TAG, `Navigate to player: ${getMediaTitle(media)}`)
+    } catch (err) {
+      hilog.error(0, TAG, 'Failed to navigate to player')
+    }
   }
 
   // 获取海报资源（支持本地资源和网络URL）
@@ -241,6 +270,13 @@ struct HomePage {
       .backgroundColor('#F5F5F5')
       .borderRadius(BorderRadius.medium)
       .padding({ left: 12, right: 12 })
+      .onClick(() => {
+        try {
+          router.pushUrl({ url: 'pages/SearchPage' })
+        } catch (err) {
+          hilog.error(0, TAG, 'Navigate to search failed')
+        }
+      })
 
       // 扫码图标
       Text('📷')
@@ -301,6 +337,9 @@ struct HomePage {
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
             }
             .width(120)
+            .onClick(() => {
+              this.navigateToPlayer(item)
+            })
           })
         }
       }
@@ -369,6 +408,9 @@ struct HomePage {
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
             }
             .width(100)
+            .onClick(() => {
+              this.navigateToPlayer(movie)
+            })
           })
         }
       }
@@ -490,6 +532,9 @@ struct HomePage {
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
+    .onClick(() => {
+      this.navigateToPlayer(movie)
+    })
   }
 }
 

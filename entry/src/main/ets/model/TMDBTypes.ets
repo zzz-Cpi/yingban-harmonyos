@@ -19,6 +19,7 @@ export interface TMDBMedia {
   original_language?: string
   original_title?: string
   original_name?: string
+  trailer_url?: string | Resource
 }
 
 // 分页响应
