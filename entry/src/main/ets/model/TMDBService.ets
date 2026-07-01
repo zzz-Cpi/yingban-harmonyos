@@ -6,6 +6,7 @@ import {
   TMDBTvDetail,
   TMDBCreditsResponse,
   TMDBVideosResponse,
+  TMDBVideo,
   TMDBSearchResponse
 } from './TMDBTypes'
 
