@@ -33,14 +33,9 @@ export interface RoomMemberSync {
   createdTime: number
 }
 
-interface KVEntry {
+export interface KVEntry {
   key: string
   value: string
-}
-
-interface DataChangeEvent {
-  insertEntries?: KVEntry[]
-  updateEntries?: KVEntry[]
 }
 
 export class DataSyncService {
@@ -50,6 +45,7 @@ export class DataSyncService {
   private onDataChangeCallback: (key: string, value: string) => void = () => {}
   private onPlayerStateChangeCallback: (state: PlayerState) => void = () => {}
   private onChatMessageCallback: (message: ChatMessageSync) => void = () => {}
+  private onRoomInfoChangeCallback: (room: RoomMemberSync) => void = () => {}
 
   private constructor() {}
 
@@ -66,45 +62,24 @@ export class DataSyncService {
     }
 
     try {
-      hilog.info(0, TAG, 'DataSyncService initialized (local mock mode)')
+      hilog.info(0, TAG, 'DataSyncService initialized (local mode, ready for distributed extension)')
       this.isInitialized = true
     } catch (err) {
-      hilog.error(0, TAG, `Failed to init DataSyncService: ${JSON.stringify(err)}`)
-      throw err as Error
-    }
-  }
-
-  private handleDataChange(key: string, value: string): void {
-    hilog.info(0, TAG, `Data changed: key=${key}`)
-
-    try {
-      if (key.startsWith(DistributedConstants.KEY_PLAYER_PREFIX)) {
-        const playerState: PlayerState = JSON.parse(value)
-        if (this.onPlayerStateChangeCallback) {
-          this.onPlayerStateChangeCallback(playerState)
-        }
-      } else if (key.startsWith(DistributedConstants.KEY_CHAT_PREFIX)) {
-        const message: ChatMessageSync = JSON.parse(value)
-        if (this.onChatMessageCallback) {
-          this.onChatMessageCallback(message)
-        }
-      }
-
-      if (this.onDataChangeCallback) {
-        this.onDataChangeCallback(key, value)
-      }
-    } catch (err) {
-      hilog.error(0, TAG, `Failed to handle data change: ${JSON.stringify(err)}`)
+      const errorMsg = err instanceof Error ? err.message : JSON.stringify(err)
+      hilog.error(0, TAG, `Failed to init DataSyncService: ${errorMsg}`)
+      throw err instanceof Error ? err : new Error(String(err))
     }
   }
 
   async put(key: string, value: string): Promise<void> {
     try {
       this.localData.set(key, value)
-      hilog.info(0, TAG, `Data stored locally: key=${key}`)
+      hilog.info(0, TAG, `Data stored: key=${key}`)
+      this.dispatchDataChange(key, value)
     } catch (err) {
-      hilog.error(0, TAG, `Failed to put data: key=${key}, err=${JSON.stringify(err)}`)
-      throw err as Error
+      const errorMsg = err instanceof Error ? err.message : JSON.stringify(err)
+      hilog.error(0, TAG, `Failed to put data: key=${key}, err=${errorMsg}`)
+      throw err instanceof Error ? err : new Error(String(err))
     }
   }
 
@@ -113,7 +88,8 @@ export class DataSyncService {
       const value = this.localData.get(key)
       return value !== undefined ? value : null
     } catch (err) {
-      hilog.error(0, TAG, `Failed to get data: key=${key}, err=${JSON.stringify(err)}`)
+      const errorMsg = err instanceof Error ? err.message : JSON.stringify(err)
+      hilog.error(0, TAG, `Failed to get data: key=${key}, err=${errorMsg}`)
       return null
     }
   }
@@ -121,8 +97,58 @@ export class DataSyncService {
   async delete(key: string): Promise<void> {
     try {
       this.localData.delete(key)
+      hilog.info(0, TAG, `Data deleted: key=${key}`)
     } catch (err) {
-      hilog.error(0, TAG, `Failed to delete data: key=${key}, err=${JSON.stringify(err)}`)
+      const errorMsg = err instanceof Error ? err.message : JSON.stringify(err)
+      hilog.error(0, TAG, `Failed to delete data: key=${key}, err=${errorMsg}`)
+    }
+  }
+
+  async getKeysByPrefix(prefix: string): Promise<string[]> {
+    const keys: string[] = []
+    this.localData.forEach((value: string, key: string) => {
+      if (key.startsWith(prefix)) {
+        keys.push(key)
+      }
+    })
+    return keys
+  }
+
+  async getEntriesByPrefix(prefix: string): Promise<KVEntry[]> {
+    const entries: KVEntry[] = []
+    this.localData.forEach((value: string, key: string) => {
+      if (key.startsWith(prefix)) {
+        entries.push({ key: key, value: value })
+      }
+    })
+    return entries
+  }
+
+  private dispatchDataChange(key: string, value: string): void {
+    try {
+      if (key.startsWith(DistributedConstants.KEY_PLAYER_PREFIX)) {
+        const playerState: PlayerState = JSON.parse(value) as PlayerState
+        if (this.onPlayerStateChangeCallback) {
+          this.onPlayerStateChangeCallback(playerState)
+        }
+      } else if (key.startsWith(DistributedConstants.KEY_CHAT_PREFIX)) {
+        const message: ChatMessageSync = JSON.parse(value) as ChatMessageSync
+        if (this.onChatMessageCallback) {
+          this.onChatMessageCallback(message)
+        }
+      } else if (key.startsWith(DistributedConstants.KEY_ROOM_PREFIX)) {
+        const room: RoomMemberSync = JSON.parse(value) as RoomMemberSync
+        if (this.onRoomInfoChangeCallback) {
+          this.onRoomInfoChangeCallback(room)
+        }
+      }
+
+      if (this.onDataChangeCallback) {
+        this.onDataChangeCallback(key, value)
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : JSON.stringify(err)
+      hilog.error(0, TAG, `Failed to dispatch data change: ${errorMsg}`)
     }
   }
 
@@ -138,10 +164,6 @@ export class DataSyncService {
     const value = JSON.stringify(message)
     await this.put(key, value)
     hilog.info(0, TAG, `Chat message sent: ${message.id}`)
-    
-    if (this.onChatMessageCallback) {
-      this.onChatMessageCallback(message)
-    }
   }
 
   async updateRoomInfo(room: RoomMemberSync): Promise<void> {
@@ -161,6 +183,10 @@ export class DataSyncService {
 
   setOnChatMessageCallback(callback: (message: ChatMessageSync) => void): void {
     this.onChatMessageCallback = callback
+  }
+
+  setOnRoomInfoChangeCallback(callback: (room: RoomMemberSync) => void): void {
+    this.onRoomInfoChangeCallback = callback
   }
 
   async release(): Promise<void> {

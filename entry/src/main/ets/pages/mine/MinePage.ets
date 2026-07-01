@@ -223,8 +223,6 @@ struct MinePage {
     }
     .width('100%')
     .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.xl, bottom: Spacing.xl })
-    .backgroundColor(Color.White)
-    .shadow(Shadows.card)
   }
 
   @Builder

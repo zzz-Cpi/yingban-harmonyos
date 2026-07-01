@@ -3,7 +3,6 @@ import { RoomManagerService, Room, RoomMember } from '../../distributed/RoomMana
 import { PlayerState, ChatMessageSync } from '../../distributed/DataSyncService'
 import router from '@ohos.router'
 import { hilog } from '@kit.PerformanceAnalysisKit'
-import { mockRoomMembers, mockChatMessages } from '../../model/MockData'
 
 const TAG = 'RoomDetailPage'
 
@@ -66,7 +65,6 @@ struct RoomDetailPage {
   aboutToAppear() {
     this.initPage()
     this.setupRoomCallbacks()
-    this.loadMockData()
   }
 
   private initPage(): void {
@@ -81,9 +79,10 @@ struct RoomDetailPage {
     if (this.currentRoom) {
       const roomMembers: RoomMember[] = this.currentRoom.members
       if (roomMembers && roomMembers.length > 0) {
+        const list: MemberItem[] = []
         for (let i = 0; i < roomMembers.length; i++) {
           const m: RoomMember = roomMembers[i]
-          this.members.push({
+          list.push({
             id: m.userId,
             name: m.userName,
             avatar: '',
@@ -91,7 +90,18 @@ struct RoomDetailPage {
             isOnline: m.isOnline
           })
         }
+        this.members = list
       }
+    }
+
+    if (this.members.length === 0) {
+      this.members.push({
+        id: 'local_user',
+        name: '我',
+        avatar: '',
+        isHost: this.isHost,
+        isOnline: true
+      })
     }
   }
 
@@ -105,8 +115,13 @@ struct RoomDetailPage {
 
     roomMgr.setOnChatMessageCallback((message: ChatMessageSync) => {
       hilog.info(0, TAG, `Chat message received: ${message.content}`)
+      if (this.isMessageDuplicate(message.id)) {
+        hilog.info(0, TAG, `Duplicate message skipped: ${message.id}`)
+        return
+      }
       this.chatMessages.push(message)
-      if (message.type !== 'system' && message.userId !== 'local_user') {
+      this.markMessageReceived(message.id)
+      if (message.type !== 'system' && message.userId !== this.getLocalUserId()) {
         this.addDanmaku(message.content, message.userName)
       }
     })
@@ -131,39 +146,29 @@ struct RoomDetailPage {
     })
   }
 
-  private loadMockData(): void {
-    if (this.members.length === 0) {
-      const mockMembers: MemberItem[] = []
-      for (let i = 0; i < mockRoomMembers.length; i++) {
-        const member = mockRoomMembers[i]
-        const m: MemberItem = {
-          id: member.id,
-          name: member.name,
-          avatar: member.avatar,
-          isHost: member.isHost,
-          isOnline: member.isOnline
-        }
-        mockMembers.push(m)
-      }
-      this.members = mockMembers
-    }
+  private receivedMessageIds: Set<string> = new Set()
 
-    if (this.chatMessages.length === 0) {
-      const mockMsgs: ChatMessageSync[] = []
-      for (let i = 0; i < mockChatMessages.length; i++) {
-        const msg = mockChatMessages[i]
-        const m: ChatMessageSync = {
-          id: msg.id,
-          userId: msg.userId,
-          userName: msg.userName,
-          content: msg.content,
-          timestamp: msg.timestamp,
-          type: msg.type
-        }
-        mockMsgs.push(m)
-      }
-      this.chatMessages = mockMsgs
+  private isMessageDuplicate(msgId: string): boolean {
+    return this.receivedMessageIds.has(msgId)
+  }
+
+  private markMessageReceived(msgId: string): void {
+    this.receivedMessageIds.add(msgId)
+    if (this.receivedMessageIds.size > 500) {
+      this.receivedMessageIds.clear()
     }
+  }
+
+  private getLocalUserId(): string {
+    const room = RoomManagerService.getInstance().getCurrentRoom()
+    if (room && room.members && room.members.length > 0) {
+      for (let i = 0; i < room.members.length; i++) {
+        if (room.members[i].userId && room.members[i].userId !== 'local_user') {
+          return room.members[i].userId
+        }
+      }
+    }
+    return 'local_user'
   }
 
   private handleRemotePlayerState(state: PlayerState): void {
@@ -213,6 +218,17 @@ struct RoomDetailPage {
 
     const content: string = this.chatInput.trim()
     this.addDanmaku(content, '我', '#FFD700')
+
+    const localMsg: ChatMessageSync = {
+      id: 'msg_local_' + Date.now(),
+      userId: this.getLocalUserId(),
+      userName: '我',
+      content: content,
+      timestamp: Date.now(),
+      type: 'chat'
+    }
+    this.chatMessages.push(localMsg)
+    this.markMessageReceived(localMsg.id)
 
     try {
       await RoomManagerService.getInstance().sendChatMessage(content)

@@ -35,6 +35,8 @@ export class RoomManagerService {
   private isHost: boolean = false
   private localUserId: string = 'local_user'
   private localUserName: string = '我'
+  private localDeviceId: string = 'local_device'
+  private isServiceReady: boolean = false
 
   private onRoomCreatedCallback: (room: Room) => void = () => {}
   private onRoomJoinedCallback: (room: Room) => void = () => {}
@@ -42,6 +44,7 @@ export class RoomManagerService {
   private onMemberLeaveCallback: (userId: string) => void = () => {}
   private onPlayerStateChangeCallback: (state: PlayerState) => void = () => {}
   private onChatMessageCallback: (message: ChatMessageSync) => void = () => {}
+  private onNearbyRoomUpdateCallback: (rooms: Room[]) => void = () => {}
 
   private constructor() {}
 
@@ -53,13 +56,34 @@ export class RoomManagerService {
   }
 
   async init(): Promise<void> {
+    if (this.isServiceReady) {
+      return
+    }
     try {
       await DeviceManagerService.getInstance().init()
-      await DataSyncService.getInstance().init()
+      hilog.info(0, TAG, 'DeviceManagerService initialized')
+
+      const localDev = DeviceManagerService.getInstance().getLocalDevice()
+      if (localDev) {
+        this.localDeviceId = localDev.deviceId
+        this.localUserId = 'user_' + localDev.deviceId.substring(0, 8)
+        if (localDev.deviceName && localDev.deviceName !== '本机设备') {
+          this.localUserName = localDev.deviceName
+        }
+      }
+      hilog.info(0, TAG, `Local user: ${this.localUserName}, deviceId: ${this.localDeviceId}`)
+
+      try {
+        await DataSyncService.getInstance().init()
+        hilog.info(0, TAG, 'DataSyncService initialized (distributed mode)')
+      } catch (syncErr) {
+        hilog.warn(0, TAG, `DataSyncService init failed, will use mock mode: ${JSON.stringify(syncErr)}`)
+      }
 
       this.setupDataSyncCallbacks()
       this.setupDeviceManagerCallbacks()
 
+      this.isServiceReady = true
       hilog.info(0, TAG, 'RoomManagerService initialized')
     } catch (err) {
       hilog.error(0, TAG, `Failed to init RoomManagerService: ${JSON.stringify(err)}`)
@@ -72,6 +96,7 @@ export class RoomManagerService {
 
     dataSync.setOnPlayerStateChangeCallback((state: PlayerState) => {
       if (this.currentRoom && state.hostId === this.currentRoom.hostId) {
+        hilog.info(0, TAG, `Player state change: ${state.action}`)
         if (this.onPlayerStateChangeCallback) {
           this.onPlayerStateChangeCallback(state)
         }
@@ -79,8 +104,22 @@ export class RoomManagerService {
     })
 
     dataSync.setOnChatMessageCallback((message: ChatMessageSync) => {
-      if (this.onChatMessageCallback) {
-        this.onChatMessageCallback(message)
+      if (this.currentRoom) {
+        hilog.info(0, TAG, `Chat message received: ${message.userName}`)
+        if (this.onChatMessageCallback) {
+          this.onChatMessageCallback(message)
+        }
+      }
+    })
+
+    dataSync.setOnRoomInfoChangeCallback((room: RoomMemberSync) => {
+      hilog.info(0, TAG, `Room info changed: ${room.roomName}, memberCount=${room.memberCount}`)
+      if (this.currentRoom && this.currentRoom.roomId === room.roomId) {
+        this.currentRoom.memberCount = room.memberCount
+        this.currentRoom.status = room.status
+        this.currentRoom.movieTitle = room.movieTitle
+        this.currentRoom.moviePoster = room.moviePoster
+        this.scanNearbyRoomsSilent()
       }
     })
   }
@@ -90,15 +129,39 @@ export class RoomManagerService {
 
     deviceMgr.setOnDeviceOnlineCallback((device: DeviceInfo) => {
       hilog.info(0, TAG, `Device online: ${device.deviceName}`)
+      this.scanNearbyRoomsSilent()
     })
 
     deviceMgr.setOnDeviceOfflineCallback((device: DeviceInfo) => {
       hilog.info(0, TAG, `Device offline: ${device.deviceName}`)
+      if (this.currentRoom) {
+        const leftMember = this.currentRoom.members.find(
+          (m: RoomMember) => m.deviceId === device.deviceId
+        )
+        if (leftMember && !leftMember.isHost) {
+          this.currentRoom.members = this.currentRoom.members.filter(
+            (m: RoomMember) => m.deviceId !== device.deviceId
+          )
+          this.currentRoom.memberCount = this.currentRoom.members.length
+          this.updateRoomInfoBroadcast()
+          this.onMemberLeaveCallback(leftMember.userId)
+        }
+      }
+      this.scanNearbyRoomsSilent()
     })
   }
 
-  async createRoom(roomName: string, maxMember?: number, themeId?: number, movieTitle?: string, moviePoster?: string, movieUrl?: string): Promise<Room> {
-    const roomId = 'room_' + Date.now()
+  async createRoom(
+    roomName: string,
+    maxMember?: number,
+    themeId?: number,
+    movieTitle?: string,
+    moviePoster?: string,
+    movieUrl?: string
+  ): Promise<Room> {
+    await this.init()
+
+    const roomId = 'room_' + this.localDeviceId + '_' + Date.now()
     const hostId = this.localUserId
     const now = Date.now()
 
@@ -106,7 +169,8 @@ export class RoomManagerService {
       userId: this.localUserId,
       userName: this.localUserName,
       isHost: true,
-      isOnline: true
+      isOnline: true,
+      deviceId: this.localDeviceId
     }
 
     const room: Room = {
@@ -143,20 +207,21 @@ export class RoomManagerService {
 
     try {
       await DataSyncService.getInstance().updateRoomInfo(roomSync)
-      hilog.info(0, TAG, `Room created: ${roomName}`)
-
-      if (this.onRoomCreatedCallback) {
-        this.onRoomCreatedCallback(room)
-      }
-
-      return room
+      hilog.info(0, TAG, `Room created and broadcasted: ${roomName}`)
     } catch (err) {
-      hilog.error(0, TAG, `Failed to create room: ${JSON.stringify(err)}`)
-      throw err as Error
+      hilog.warn(0, TAG, `Failed to broadcast room info: ${JSON.stringify(err)}`)
     }
+
+    if (this.onRoomCreatedCallback) {
+      this.onRoomCreatedCallback(room)
+    }
+
+    return room
   }
 
   async joinRoom(room: Room): Promise<void> {
+    await this.init()
+
     this.currentRoom = room
     this.isHost = false
 
@@ -164,16 +229,19 @@ export class RoomManagerService {
       userId: this.localUserId,
       userName: this.localUserName,
       isHost: false,
-      isOnline: true
+      isOnline: true,
+      deviceId: this.localDeviceId
     }
 
-    if (this.currentRoom) {
-      const existingMember = this.currentRoom.members.find((m: RoomMember) => m.userId === this.localUserId)
-      if (!existingMember) {
-        this.currentRoom.members.push(member)
-        this.currentRoom.memberCount = this.currentRoom.members.length
-      }
+    const existingMember = this.currentRoom.members.find(
+      (m: RoomMember) => m.userId === this.localUserId
+    )
+    if (!existingMember) {
+      this.currentRoom.members.push(member)
+      this.currentRoom.memberCount = this.currentRoom.members.length
     }
+
+    this.updateRoomInfoBroadcast()
 
     hilog.info(0, TAG, `Joined room: ${room.roomName}`)
 
@@ -187,6 +255,24 @@ export class RoomManagerService {
   async leaveRoom(): Promise<void> {
     if (this.currentRoom) {
       await this.sendSystemMessage(`${this.localUserName} 离开了房间`)
+
+      if (this.isHost) {
+        try {
+          await DataSyncService.getInstance().delete(
+            DistributedConstants.KEY_ROOM_PREFIX + this.currentRoom.roomId
+          )
+          hilog.info(0, TAG, `Room broadcast removed: ${this.currentRoom.roomName}`)
+        } catch (err) {
+          hilog.warn(0, TAG, `Failed to remove room broadcast: ${JSON.stringify(err)}`)
+        }
+      } else {
+        this.currentRoom.members = this.currentRoom.members.filter(
+          (m: RoomMember) => m.userId !== this.localUserId
+        )
+        this.currentRoom.memberCount = this.currentRoom.members.length
+        this.updateRoomInfoBroadcast()
+      }
+
       hilog.info(0, TAG, `Left room: ${this.currentRoom.roomName}`)
     }
 
@@ -194,10 +280,32 @@ export class RoomManagerService {
     this.isHost = false
   }
 
+  private updateRoomInfoBroadcast(): void {
+    if (!this.currentRoom || !this.isHost) return
+
+    const roomSync: RoomMemberSync = {
+      roomId: this.currentRoom.roomId,
+      roomName: this.currentRoom.roomName,
+      hostId: this.currentRoom.hostId,
+      hostName: this.currentRoom.hostName,
+      memberCount: this.currentRoom.memberCount,
+      maxMember: this.currentRoom.maxMember,
+      status: this.currentRoom.status,
+      movieTitle: this.currentRoom.movieTitle,
+      moviePoster: this.currentRoom.moviePoster,
+      createdTime: this.currentRoom.createdTime
+    }
+
+    DataSyncService.getInstance().updateRoomInfo(roomSync).catch((err: Error) => {
+      hilog.warn(0, TAG, `Failed to update room broadcast: ${err.message}`)
+    })
+  }
+
   async startPlaying(): Promise<void> {
     if (!this.currentRoom || !this.isHost) return
 
     this.currentRoom.status = DistributedConstants.ROOM_STATUS_PLAYING
+    this.updateRoomInfoBroadcast()
 
     const state: PlayerState = {
       action: DistributedConstants.PLAYER_ACTION_PLAY,
@@ -258,7 +366,7 @@ export class RoomManagerService {
 
   async sendChatMessage(content: string): Promise<void> {
     const message: ChatMessageSync = {
-      id: 'msg_' + Date.now(),
+      id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
       userId: this.localUserId,
       userName: this.localUserName,
       content: content,
@@ -287,7 +395,8 @@ export class RoomManagerService {
   }
 
   async discoverNearbyRooms(): Promise<Room[]> {
-    // 调用真实设备发现，发现周边在线鸿蒙设备
+    await this.init()
+
     let discoveredDevices: DeviceInfo[] = []
     try {
       discoveredDevices = await DeviceManagerService.getInstance().startDeviceDiscovery()
@@ -296,38 +405,87 @@ export class RoomManagerService {
       hilog.warn(0, TAG, `Device discovery failed: ${JSON.stringify(err)}`)
     }
 
-    // 基于真实发现的设备生成"附近房间"列表
-    // 每个在线设备视为一个潜在的可加入房间（房主为该设备）
     const rooms: Room[] = []
-    for (let i = 0; i < discoveredDevices.length; i++) {
-      const device = discoveredDevices[i]
-      if (!device.isOnline) {
-        continue
+
+    try {
+      const roomEntries = await DataSyncService.getInstance().getEntriesByPrefix(
+        DistributedConstants.KEY_ROOM_PREFIX
+      )
+      hilog.info(0, TAG, `Found ${roomEntries.length} room broadcasts in KVStore`)
+
+      for (let i = 0; i < roomEntries.length; i++) {
+        try {
+          const roomSync: RoomMemberSync = JSON.parse(roomEntries[i].value)
+          const hostMember: RoomMember = {
+            userId: roomSync.hostId,
+            userName: roomSync.hostName,
+            isHost: true,
+            isOnline: true
+          }
+          const room: Room = {
+            roomId: roomSync.roomId,
+            roomName: roomSync.roomName,
+            hostId: roomSync.hostId,
+            hostName: roomSync.hostName,
+            memberCount: roomSync.memberCount,
+            maxMember: roomSync.maxMember,
+            status: roomSync.status,
+            movieTitle: roomSync.movieTitle,
+            moviePoster: roomSync.moviePoster,
+            createdTime: roomSync.createdTime,
+            members: [hostMember]
+          }
+
+          if (!rooms.find((r: Room) => r.roomId === room.roomId)) {
+            rooms.push(room)
+          }
+        } catch (parseErr) {
+          hilog.warn(0, TAG, `Failed to parse room data: ${JSON.stringify(parseErr)}`)
+        }
       }
-      const hostMember: RoomMember = {
-        userId: device.deviceId,
-        userName: device.deviceName,
-        isHost: true,
-        isOnline: true,
-        deviceId: device.deviceId
-      }
-      const room: Room = {
-        roomId: 'room_' + device.deviceId,
-        roomName: device.deviceName + '的观影房',
-        hostId: device.deviceId,
-        hostName: device.deviceName,
-        memberCount: 1,
-        maxMember: 8,
-        status: DistributedConstants.ROOM_STATUS_WAITING,
-        movieTitle: undefined,
-        moviePoster: undefined,
-        createdTime: Date.now(),
-        members: [hostMember]
-      }
-      rooms.push(room)
+    } catch (err) {
+      hilog.warn(0, TAG, `Failed to read room broadcasts: ${JSON.stringify(err)}`)
     }
 
+    if (rooms.length === 0) {
+      for (let i = 0; i < discoveredDevices.length; i++) {
+        const device = discoveredDevices[i]
+        if (!device.isOnline) continue
+        const hostMember: RoomMember = {
+          userId: device.deviceId,
+          userName: device.deviceName,
+          isHost: true,
+          isOnline: true,
+          deviceId: device.deviceId
+        }
+        const room: Room = {
+          roomId: 'room_' + device.deviceId,
+          roomName: device.deviceName + '的观影房',
+          hostId: device.deviceId,
+          hostName: device.deviceName,
+          memberCount: 1,
+          maxMember: 8,
+          status: DistributedConstants.ROOM_STATUS_WAITING,
+          createdTime: Date.now(),
+          members: [hostMember]
+        }
+        rooms.push(room)
+      }
+    }
+
+    hilog.info(0, TAG, `Total nearby rooms: ${rooms.length}`)
     return rooms
+  }
+
+  private scanNearbyRoomsSilent(): void {
+    if (!this.onNearbyRoomUpdateCallback) return
+    this.discoverNearbyRooms()
+      .then((rooms: Room[]) => {
+        if (this.onNearbyRoomUpdateCallback) {
+          this.onNearbyRoomUpdateCallback(rooms)
+        }
+      })
+      .catch(() => {})
   }
 
   getCurrentRoom(): Room | null {
@@ -370,11 +528,16 @@ export class RoomManagerService {
     this.onChatMessageCallback = callback
   }
 
+  setOnNearbyRoomUpdateCallback(callback: (rooms: Room[]) => void): void {
+    this.onNearbyRoomUpdateCallback = callback
+  }
+
   async release(): Promise<void> {
     DeviceManagerService.getInstance().release()
     await DataSyncService.getInstance().release()
     this.currentRoom = null
     this.isHost = false
+    this.isServiceReady = false
   }
 }
 
