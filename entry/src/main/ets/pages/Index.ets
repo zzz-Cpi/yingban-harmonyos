@@ -9,7 +9,7 @@ import MinePage from './MinePage'
 struct Index {
   @State currentIndex: number = 0
 
-  private tabTitles: string[] = ['首页', '追剧', '观影厅', '我的']
+  private tabTitles: string[] = ['首页', '追剧', '观影厅', '我的吗']
   private tabIcons: string[] = ['🏠', '🎬', '📡', '👤']
 
   build() {
