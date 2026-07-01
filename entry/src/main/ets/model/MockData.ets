@@ -27,6 +27,7 @@ export interface Drama {
   watchProgress: number
   addedTime: number
   lastWatchTime: number
+  playlistId: number
 }
 
 // 今日更新
@@ -107,6 +108,15 @@ export interface Playlist {
   count: number
 }
 
+// 观看历史卡片
+export interface HistoryDrama {
+  id: number
+  title: string
+  posterName: string
+  totalEpisodes: number
+  currentEpisode: number
+}
+
 // ==================== Mock 数据工厂方法 ====================
 
 export function createMovie(
@@ -147,7 +157,8 @@ export function createDrama(
   totalEpisodes: number,
   watchProgress: number,
   addedTime: number,
-  lastWatchTime: number
+  lastWatchTime: number,
+  playlistId: number
 ): Drama {
   const d: Drama = {
     id: id,
@@ -158,7 +169,8 @@ export function createDrama(
     totalEpisodes: totalEpisodes,
     watchProgress: watchProgress,
     addedTime: addedTime,
-    lastWatchTime: lastWatchTime
+    lastWatchTime: lastWatchTime,
+    playlistId: playlistId
   }
   return d
 }
@@ -345,17 +357,17 @@ function getMockDramas(): Drama[] {
   const movies: Movie[] = getMockMovies()
   const list: Drama[] = []
   list.push(createDrama(1, 1, movies[0], 'watching', 28, 30, 93,
-    Date.now() - 30 * 24 * 60 * 60 * 1000, Date.now() - 2 * 60 * 60 * 1000))
+    Date.now() - 30 * 24 * 60 * 60 * 1000, Date.now() - 2 * 60 * 60 * 1000, 2))
   list.push(createDrama(2, 2, movies[1], 'watching', 15, 36, 42,
-    Date.now() - 15 * 24 * 60 * 60 * 1000, Date.now() - 24 * 60 * 60 * 1000))
+    Date.now() - 15 * 24 * 60 * 60 * 1000, Date.now() - 24 * 60 * 60 * 1000, 2))
   list.push(createDrama(3, 3, movies[2], 'finished', 8, 8, 100,
-    Date.now() - 60 * 24 * 60 * 60 * 1000, Date.now() - 7 * 24 * 60 * 60 * 1000))
+    Date.now() - 60 * 24 * 60 * 60 * 1000, Date.now() - 7 * 24 * 60 * 60 * 1000, 4))
   list.push(createDrama(4, 7, movies[6], 'want', 0, 54, 0,
-    Date.now() - 5 * 24 * 60 * 60 * 1000, 0))
+    Date.now() - 5 * 24 * 60 * 60 * 1000, 0, 3))
   list.push(createDrama(5, 8, movies[7], 'finished', 39, 39, 100,
-    Date.now() - 90 * 24 * 60 * 60 * 1000, Date.now() - 30 * 24 * 60 * 60 * 1000))
+    Date.now() - 90 * 24 * 60 * 60 * 1000, Date.now() - 30 * 24 * 60 * 60 * 1000, 3))
   list.push(createDrama(6, 4, movies[3], 'watching', 1, 1, 100,
-    Date.now() - 3 * 24 * 60 * 60 * 1000, Date.now() - 3 * 24 * 60 * 60 * 1000))
+    Date.now() - 3 * 24 * 60 * 60 * 1000, Date.now() - 3 * 24 * 60 * 60 * 1000, 2))
   return list
 }
 
@@ -363,7 +375,6 @@ export const mockDramas: Drama[] = getMockDramas()
 
 function getMockPlaylists(): Playlist[] {
   const list: Playlist[] = []
-  list.push(createPlaylist(1, '全部', 6))
   list.push(createPlaylist(2, '寒假补番', 3))
   list.push(createPlaylist(3, '悬疑合集', 2))
   list.push(createPlaylist(4, '下饭剧', 2))
@@ -444,6 +455,35 @@ function getMockUser(): User {
 }
 
 export const mockUser: User = getMockUser()
+
+function createHistoryDrama(
+  id: number,
+  title: string,
+  posterName: string,
+  totalEpisodes: number,
+  currentEpisode: number
+): HistoryDrama {
+  return {
+    id: id,
+    title: title,
+    posterName: posterName,
+    totalEpisodes: totalEpisodes,
+    currentEpisode: currentEpisode
+  }
+}
+
+function getMockHistoryDramas(): HistoryDrama[] {
+  const list: HistoryDrama[] = []
+  list.push(createHistoryDrama(1, '枭起青壤', 'poster_xiaoqiqingrang', 32, 27))
+  list.push(createHistoryDrama(2, '繁花', 'poster_fanhua', 30, 18))
+  list.push(createHistoryDrama(3, '庆余年 第二季', 'poster_qingyunian', 36, 15))
+  list.push(createHistoryDrama(4, '狂飙', 'poster_kuangbiao', 39, 12))
+  list.push(createHistoryDrama(5, '我的阿勒泰', 'poster_aletai', 8, 8))
+  list.push(createHistoryDrama(6, '琅琊榜', 'poster_langyabang', 54, 0))
+  return list
+}
+
+export const mockHistoryDramas: HistoryDrama[] = getMockHistoryDramas()
 
 // ==================== TMDB 格式 Mock 数据（用于API失败时降级） ====================
 

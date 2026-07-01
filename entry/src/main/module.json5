@@ -25,6 +25,14 @@
       {
         "name": "ohos.permission.GET_NETWORK_INFO",
         "reason": "$string:get_network_info_reason"
+      },
+      {
+        "name": "ohos.permission.CAMERA",
+        "reason": "$string:camera_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
       }
     ],
     "abilities": [

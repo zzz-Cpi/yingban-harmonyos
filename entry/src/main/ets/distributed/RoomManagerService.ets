@@ -12,9 +12,11 @@ export interface Room {
   hostName: string
   memberCount: number
   maxMember: number
+  themeId?: number
   status: string
   movieTitle?: string
   moviePoster?: string
+  movieUrl?: string
   createdTime: number
   members: RoomMember[]
 }
@@ -95,7 +97,7 @@ export class RoomManagerService {
     })
   }
 
-  async createRoom(roomName: string, movieTitle?: string, moviePoster?: string): Promise<Room> {
+  async createRoom(roomName: string, maxMember?: number, themeId?: number, movieTitle?: string, moviePoster?: string, movieUrl?: string): Promise<Room> {
     const roomId = 'room_' + Date.now()
     const hostId = this.localUserId
     const now = Date.now()
@@ -113,10 +115,12 @@ export class RoomManagerService {
       hostId: hostId,
       hostName: this.localUserName,
       memberCount: 1,
-      maxMember: 8,
+      maxMember: maxMember || 8,
+      themeId: themeId || 1,
       status: DistributedConstants.ROOM_STATUS_WAITING,
       movieTitle: movieTitle,
       moviePoster: moviePoster,
+      movieUrl: movieUrl,
       createdTime: now,
       members: [hostMember]
     }
@@ -130,7 +134,7 @@ export class RoomManagerService {
       hostId: hostId,
       hostName: this.localUserName,
       memberCount: 1,
-      maxMember: 8,
+      maxMember: maxMember || 8,
       status: DistributedConstants.ROOM_STATUS_WAITING,
       movieTitle: movieTitle,
       moviePoster: moviePoster,
@@ -283,56 +287,47 @@ export class RoomManagerService {
   }
 
   async discoverNearbyRooms(): Promise<Room[]> {
+    // 调用真实设备发现，发现周边在线鸿蒙设备
+    let discoveredDevices: DeviceInfo[] = []
     try {
-      await DeviceManagerService.getInstance().startDeviceDiscovery()
+      discoveredDevices = await DeviceManagerService.getInstance().startDeviceDiscovery()
+      hilog.info(0, TAG, `Discovered ${discoveredDevices.length} devices`)
     } catch (err) {
       hilog.warn(0, TAG, `Device discovery failed: ${JSON.stringify(err)}`)
     }
 
-    const hostMember: RoomMember = {
-      userId: 'host_1',
-      userName: '小李',
-      isHost: true,
-      isOnline: true
-    }
-
-    const hostMember2: RoomMember = {
-      userId: 'host_2',
-      userName: '阿明',
-      isHost: true,
-      isOnline: true
-    }
-
-    const mockRooms: Room[] = [
-      {
-        roomId: 'room_mock_1',
-        roomName: '庆余年追剧团',
-        hostId: 'host_1',
-        hostName: '小李',
-        memberCount: 3,
+    // 基于真实发现的设备生成"附近房间"列表
+    // 每个在线设备视为一个潜在的可加入房间（房主为该设备）
+    const rooms: Room[] = []
+    for (let i = 0; i < discoveredDevices.length; i++) {
+      const device = discoveredDevices[i]
+      if (!device.isOnline) {
+        continue
+      }
+      const hostMember: RoomMember = {
+        userId: device.deviceId,
+        userName: device.deviceName,
+        isHost: true,
+        isOnline: true,
+        deviceId: device.deviceId
+      }
+      const room: Room = {
+        roomId: 'room_' + device.deviceId,
+        roomName: device.deviceName + '的观影房',
+        hostId: device.deviceId,
+        hostName: device.deviceName,
+        memberCount: 1,
         maxMember: 8,
         status: DistributedConstants.ROOM_STATUS_WAITING,
         movieTitle: undefined,
         moviePoster: undefined,
-        createdTime: Date.now() - 10 * 60 * 1000,
+        createdTime: Date.now(),
         members: [hostMember]
-      },
-      {
-        roomId: 'room_mock_2',
-        roomName: '繁花观影会',
-        hostId: 'host_2',
-        hostName: '阿明',
-        memberCount: 5,
-        maxMember: 6,
-        status: DistributedConstants.ROOM_STATUS_PLAYING,
-        movieTitle: '繁花',
-        moviePoster: 'poster_fanhua',
-        createdTime: Date.now() - 30 * 60 * 1000,
-        members: [hostMember2]
       }
-    ]
+      rooms.push(room)
+    }
 
-    return mockRooms
+    return rooms
   }
 
   getCurrentRoom(): Room | null {

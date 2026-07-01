@@ -1,7 +1,7 @@
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../../utils/Constants'
 import { mockAllMedia, mockCategories, Category } from '../../model/MockData'
 import { TMDBMedia, getMediaTitle, getMediaYear } from '../../model/TMDBTypes'
-import router from '@ohos.router'
+import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const TAG = 'LibraryPage'

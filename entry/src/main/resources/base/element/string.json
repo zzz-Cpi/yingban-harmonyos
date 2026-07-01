@@ -23,6 +23,14 @@
     {
       "name": "nearby_devices_reason",
       "value": "用于发现附近的鸿蒙设备以创建观影房间"
+    },
+    {
+      "name": "camera_reason",
+      "value": "用于扫码加入观影房间的二维码识别"
+    },
+    {
+      "name": "access_service_dm_reason",
+      "value": "用于发现附近鸿蒙设备以创建观影房间"
     }
   ]
 }

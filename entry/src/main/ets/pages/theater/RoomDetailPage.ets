@@ -29,6 +29,15 @@ interface MemberItem {
   isOnline: boolean
 }
 
+interface DanmakuItem {
+  id: string
+  content: string
+  userName: string
+  top: number
+  color: string
+  speed: number
+}
+
 @Entry
 @Component
 struct RoomDetailPage {
@@ -45,9 +54,14 @@ struct RoomDetailPage {
   @State private playbackSpeed: number = 1
   @State private showMemberList: boolean = false
   @State private showMoreMenu: boolean = false
+  @State private showLeaveConfirm: boolean = false
+  @State private showMoviePicker: boolean = false
+  @State private danmakuList: DanmakuItem[] = []
+  @State private showDanmaku: boolean = true
   private videoController: VideoController = new VideoController()
 
   private readonly TEST_VIDEO_URL: string = 'https://www.w3schools.com/html/mov_bbb.mp4'
+  private danmakuColors: string[] = ['#FFFFFF', '#FFD700', '#00FF7F', '#FF6B6B', '#4ECDC4', '#A8E6CF']
 
   aboutToAppear() {
     this.initPage()
@@ -92,6 +106,9 @@ struct RoomDetailPage {
     roomMgr.setOnChatMessageCallback((message: ChatMessageSync) => {
       hilog.info(0, TAG, `Chat message received: ${message.content}`)
       this.chatMessages.push(message)
+      if (message.type !== 'system' && message.userId !== 'local_user') {
+        this.addDanmaku(message.content, message.userName)
+      }
     })
 
     roomMgr.setOnMemberJoinCallback((member: RoomMember) => {
@@ -194,12 +211,32 @@ struct RoomDetailPage {
   async onSendChat(): Promise<void> {
     if (!this.chatInput.trim()) return
 
+    const content: string = this.chatInput.trim()
+    this.addDanmaku(content, '我', '#FFD700')
+
     try {
-      await RoomManagerService.getInstance().sendChatMessage(this.chatInput.trim())
+      await RoomManagerService.getInstance().sendChatMessage(content)
       this.chatInput = ''
     } catch (err) {
       hilog.error(0, TAG, `Failed to send message: ${JSON.stringify(err)}`)
     }
+  }
+
+  private addDanmaku(content: string, userName: string, color?: string): void {
+    if (!this.showDanmaku) return
+    const danmaku: DanmakuItem = {
+      id: 'danmaku_' + Date.now() + '_' + Math.random(),
+      content: content,
+      userName: userName,
+      top: Math.random() * 140 + 10,
+      color: color || this.danmakuColors[Math.floor(Math.random() * this.danmakuColors.length)],
+      speed: 8 + Math.random() * 6
+    }
+    this.danmakuList.push(danmaku)
+
+    setTimeout(() => {
+      this.danmakuList = this.danmakuList.filter((d: DanmakuItem) => d.id !== danmaku.id)
+    }, 8000)
   }
 
   private formatTime(seconds: number): string {
@@ -216,10 +253,11 @@ struct RoomDetailPage {
   }
 
   onBackClick(): void {
-    router.back()
+    this.showLeaveConfirm = true
   }
 
-  async onLeaveRoom(): Promise<void> {
+  async confirmLeaveRoom(): Promise<void> {
+    this.showLeaveConfirm = false
     try {
       await RoomManagerService.getInstance().leaveRoom()
       router.back()
@@ -229,17 +267,35 @@ struct RoomDetailPage {
   }
 
   build() {
-    Column() {
-      this.TopBar()
-      this.VideoPlayer()
-      this.PlayerControls()
-      this.ChatArea()
+    Stack() {
+      Column() {
+        this.TopBar()
+        this.VideoPlayer()
+        this.PlayerControls()
+        this.ChatArea()
+      }
+      .width('100%')
+      .height('100%')
+      .backgroundColor(Colors.darkBackground)
+
+      if (this.showMemberList) {
+        this.MemberListPanel()
+      }
+
+      if (this.showMoreMenu) {
+        this.MoreMenu()
+      }
+
+      if (this.showLeaveConfirm) {
+        this.LeaveConfirmDialog()
+      }
+
+      if (this.showMoviePicker) {
+        this.MoviePickerDialog()
+      }
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(Colors.darkBackground)
-    .overlay(this.MemberListPanel())
-    .overlay(this.MoreMenu())
   }
 
   @Builder
@@ -320,6 +376,29 @@ struct RoomDetailPage {
           hilog.error(0, TAG, 'Video error')
         })
 
+      if (this.showDanmaku && this.danmakuList.length > 0) {
+        Stack() {
+          ForEach(this.danmakuList, (danmaku: DanmakuItem) => {
+            Text(danmaku.content)
+              .fontSize(14)
+              .fontColor(danmaku.color)
+              .fontWeight(FontWeightValue.medium)
+              .textShadow({ radius: 2, color: 'rgba(0,0,0,0.8)' })
+              .position({ x: '100%', y: danmaku.top })
+              .margin({ right: -200 })
+              .animation({
+                duration: 8000,
+                tempo: danmaku.speed / 10,
+                curve: Curve.Linear,
+                iterations: 1,
+                playMode: PlayMode.Normal
+              })
+          }, (danmaku: DanmakuItem) => danmaku.id)
+        }
+        .width('100%')
+        .height('100%')
+      }
+
       if (!this.isPlaying) {
         Column() {
           Text(this.isHost ? '点击播放' : '等待房主播放...')
@@ -397,6 +476,16 @@ struct RoomDetailPage {
           })
 
         Blank()
+
+        Text(this.showDanmaku ? '弹' : '闭')
+          .fontSize(12)
+          .fontColor(Color.White)
+          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+          .backgroundColor(this.showDanmaku ? Colors.primary : 'rgba(255,255,255,0.2)')
+          .borderRadius(4)
+          .onClick(() => {
+            this.showDanmaku = !this.showDanmaku
+          })
 
         Text(`${this.playbackSpeed}x`)
           .fontSize(12)
@@ -648,9 +737,157 @@ struct RoomDetailPage {
     .onClick(() => {
       this.showMoreMenu = false
       if (title === '退出房间') {
-        this.onLeaveRoom()
+        this.showLeaveConfirm = true
+      } else if (title === '选择影片') {
+        this.showMoviePicker = true
       }
     })
+  }
+
+  @Builder
+  LeaveConfirmDialog() {
+    Stack({ alignContent: Alignment.Center }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('rgba(0,0,0,0.5)')
+        .onClick(() => {
+          this.showLeaveConfirm = false
+        })
+
+      Column() {
+        Text('退出房间')
+          .fontSize(FontSizes.sectionTitle)
+          .fontWeight(FontWeightValue.bold)
+          .fontColor(Colors.textPrimary)
+          .margin({ bottom: Spacing.md })
+
+        Text('确定要退出当前观影房吗？')
+          .fontSize(FontSizes.body)
+          .fontColor(Colors.textSecondary)
+          .margin({ bottom: Spacing.xl })
+
+        Row({ space: Spacing.md }) {
+          Text('取消')
+            .fontSize(FontSizes.body)
+            .fontColor(Colors.textSecondary)
+            .layoutWeight(1)
+            .height(44)
+            .textAlign(TextAlign.Center)
+            .backgroundColor('#F5F5F5')
+            .borderRadius(BorderRadius.medium)
+            .onClick(() => {
+              this.showLeaveConfirm = false
+            })
+
+          Text('确定退出')
+            .fontSize(FontSizes.body)
+            .fontColor(Color.White)
+            .fontWeight(FontWeightValue.medium)
+            .layoutWeight(1)
+            .height(44)
+            .textAlign(TextAlign.Center)
+            .backgroundColor(Colors.error)
+            .borderRadius(BorderRadius.medium)
+            .onClick(() => {
+              this.confirmLeaveRoom()
+            })
+        }
+        .width('100%')
+      }
+      .width('75%')
+      .padding(Spacing.xl)
+      .backgroundColor(Color.White)
+      .borderRadius(BorderRadius.large)
+      .alignItems(HorizontalAlign.Center)
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  MoviePickerDialog() {
+    Stack({ alignContent: Alignment.Bottom }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('rgba(0,0,0,0.5)')
+        .onClick(() => {
+          this.showMoviePicker = false
+        })
+
+      Column() {
+        Row()
+          .width(40)
+          .height(4)
+          .borderRadius(2)
+          .backgroundColor('rgba(0,0,0,0.15)')
+          .margin({ top: Spacing.md, bottom: Spacing.lg })
+
+        Text('选择影片')
+          .fontSize(FontSizes.sectionTitle)
+          .fontWeight(FontWeightValue.bold)
+          .fontColor(Colors.textPrimary)
+          .margin({ bottom: Spacing.lg })
+
+        Column() {
+          this.MovieOptionItem('🎬', 'Big Buck Bunny', '经典测试影片', this.TEST_VIDEO_URL)
+          this.MovieOptionItem('🎥', '示例影片2', '待添加', '')
+          this.MovieOptionItem('📺', '示例影片3', '待添加', '')
+        }
+        .width('100%')
+
+        Row()
+          .width('100%')
+          .height(20)
+      }
+      .width('100%')
+      .padding({ left: Spacing.xl, right: Spacing.xl })
+      .backgroundColor(Color.White)
+      .borderRadius({ topLeft: 24, topRight: 24 })
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  MovieOptionItem(icon: string, title: string, desc: string, url: string) {
+    Row() {
+      Text(icon)
+        .fontSize(28)
+
+      Column() {
+        Text(title)
+          .fontSize(FontSizes.body)
+          .fontWeight(FontWeightValue.medium)
+          .fontColor(Colors.textPrimary)
+
+        Text(desc)
+          .fontSize(FontSizes.helper)
+          .fontColor(Colors.textSecondary)
+          .margin({ top: 2 })
+      }
+      .margin({ left: Spacing.md })
+      .alignItems(HorizontalAlign.Start)
+
+      Blank()
+
+      Text('选择')
+        .fontSize(FontSizes.caption)
+        .fontColor(Colors.primary)
+        .padding({ left: Spacing.md, right: Spacing.md, top: 6, bottom: 6 })
+        .border({ width: 1, color: Colors.primary })
+        .borderRadius(BorderRadius.small)
+        .onClick(() => {
+          if (url) {
+            hilog.info(0, TAG, `Selected movie: ${title}`)
+            this.showMoviePicker = false
+          }
+        })
+    }
+    .width('100%')
+    .padding({ top: Spacing.md, bottom: Spacing.md })
+    .border({ width: { bottom: 1 }, color: '#F0F0F0' })
   }
 }
 

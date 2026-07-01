@@ -1,15 +1,36 @@
 import { Colors, Spacing, BorderRadius, Shadows, FontSizes, FontWeightValue } from '../../utils/Constants'
 import { RoomManagerService, Room } from '../../distributed/RoomManagerService'
 import router from '@ohos.router'
+import pasteboard from '@ohos.pasteboard'
+import promptAction from '@ohos.promptAction'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const TAG = 'TheaterPage'
 
-interface QrCell {
-  x: number
-  y: number
-  filled: boolean
+interface RouterParams {
+  scanResult?: string
 }
+
+// 房间主题配置
+interface RoomTheme {
+  id: number
+  name: string
+  icon: string
+  gradientColors: string[]
+  bgColor: string
+}
+
+const ROOM_THEMES: RoomTheme[] = [
+  { id: 1, name: '影院之夜', icon: '🎬', gradientColors: ['#667eea', '#764ba2'], bgColor: 'rgba(102,126,234,0.15)' },
+  { id: 2, name: '温馨小聚', icon: '🍿', gradientColors: ['#f093fb', '#f5576c'], bgColor: 'rgba(240,147,251,0.15)' },
+  { id: 3, name: '动漫乐园', icon: '🎌', gradientColors: ['#4facfe', '#00f2fe'], bgColor: 'rgba(79,172,254,0.15)' },
+  { id: 4, name: '经典怀旧', icon: '📽️', gradientColors: ['#fa709a', '#fee140'], bgColor: 'rgba(250,112,154,0.15)' },
+  { id: 5, name: '游戏之夜', icon: '🎮', gradientColors: ['#a8edea', '#fed6e3'], bgColor: 'rgba(168,237,234,0.15)' },
+  { id: 6, name: '静谧时光', icon: '🌙', gradientColors: ['#667eea', '#764ba2'], bgColor: 'rgba(26,26,46,0.12)' }
+]
+
+// 最大人数选项
+const MAX_MEMBER_OPTIONS: number[] = [4, 6, 8, 12]
 
 @Entry
 @Component
@@ -17,18 +38,31 @@ struct TheaterPage {
   @State private isScanning: boolean = false
   @State private showCreateDialog: boolean = false
   @State private showQrDialog: boolean = false
-  @State private showScanDialog: boolean = false
   @State private roomName: string = ''
+  @State private selectedThemeId: number = 1
+  @State private selectedMaxMember: number = 8
   @State private nearbyRooms: Room[] = []
   @State private isServiceReady: boolean = false
   @State private errorMessage: string = ''
   @State private currentRoomInfo: Room | null = null
-  @State private qrCells: QrCell[] = []
-  @State private scanResult: string = ''
+  @State private showJoinConfirm: boolean = false
+  @State private selectedRoom: Room | null = null
 
   aboutToAppear() {
     this.initService()
     this.loadNearbyRooms()
+  }
+
+  // 页面显示时检查是否从扫码页返回并带有结果
+  onPageShow(): void {
+    const params = router.getParams() as RouterParams
+    if (params && params.scanResult) {
+      const scanResult: string = params.scanResult
+      hilog.info(0, TAG, `Received scan result: ${scanResult}`)
+      // 清除参数避免重复触发
+      router.replaceUrl({ url: 'pages/theater/TheaterPage' })
+      this.handleScanResult(scanResult)
+    }
   }
 
   async initService(): Promise<void> {
@@ -39,6 +73,7 @@ struct TheaterPage {
     } catch (err) {
       hilog.error(0, TAG, 'Failed to init service')
       this.errorMessage = '分布式服务初始化失败'
+      promptAction.showToast({ message: '分布式服务初始化失败', duration: 2000 })
     }
   }
 
@@ -52,7 +87,7 @@ struct TheaterPage {
       hilog.info(0, TAG, `Found ${rooms.length} nearby rooms`)
     } catch (err) {
       hilog.error(0, TAG, 'Failed to discover rooms')
-      this.errorMessage = '扫描附近房间失败，请重试'
+      this.showError('扫描附近房间失败，请重试')
     } finally {
       this.isScanning = false
     }
@@ -60,102 +95,138 @@ struct TheaterPage {
 
   async onCreateRoom(): Promise<void> {
     if (!this.roomName.trim()) {
-      this.errorMessage = '请输入房间名称'
+      this.showError('请输入房间名称')
       return
     }
 
     try {
-      const room: Room = await RoomManagerService.getInstance().createRoom(this.roomName.trim())
-      hilog.info(0, TAG, `Room created: ${room.roomName}`)
+      const room: Room = await RoomManagerService.getInstance().createRoom(
+        this.roomName.trim(),
+        this.selectedMaxMember,
+        this.selectedThemeId
+      )
+      hilog.info(0, TAG, `Room created: ${room.roomName}, theme: ${this.selectedThemeId}, max: ${this.selectedMaxMember}`)
       this.showCreateDialog = false
       this.roomName = ''
       this.showQrCodeDialog(room)
     } catch (err) {
       hilog.error(0, TAG, 'Failed to create room')
-      this.errorMessage = '创建房间失败，请重试'
+      this.showError('创建房间失败，请重试')
     }
   }
 
   showQrCodeDialog(room: Room): void {
     this.currentRoomInfo = room
-    this.qrCells = this.generateMockQrCode(room.roomId)
     this.showQrDialog = true
   }
 
-  generateMockQrCode(content: string): QrCell[] {
-    const size: number = 21
-    const cells: QrCell[] = []
-    let hash: number = 0
-    for (let i = 0; i < content.length; i++) {
-      hash = ((hash << 5) - hash) + content.charCodeAt(i)
-      hash = hash & hash
-    }
-
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        let filled: boolean = false
-        if ((x < 7 && y < 7) || (x >= size - 7 && y < 7) || (x < 7 && y >= size - 7)) {
-          const lx: number = x < 7 ? x : x - (size - 7)
-          const ly: number = y < 7 ? y : y - (size - 7)
-          if ((lx === 0 || lx === 6 || ly === 0 || ly === 6) && lx >= 0 && lx <= 6 && ly >= 0 && ly <= 6) {
-            filled = true
-          }
-          if (lx >= 2 && lx <= 4 && ly >= 2 && ly <= 4) {
-            filled = true
-          }
-        } else {
-          const pseudo: number = (x * 31 + y * 17 + hash) % 7
-          filled = pseudo < 3
-        }
-        const cell: QrCell = { x: x, y: y, filled: filled }
-        cells.push(cell)
-      }
-    }
-    return cells
+  private getQrContent(): string {
+    if (!this.currentRoomInfo) return ''
+    return `movietheater://join?roomId=${this.currentRoomInfo.roomId}&roomName=${encodeURIComponent(this.currentRoomInfo.roomName)}&host=${encodeURIComponent(this.currentRoomInfo.hostName)}`
   }
 
-  async onJoinRoom(room: Room): Promise<void> {
+  private copyRoomId(): void {
+    if (!this.currentRoomInfo) return
     try {
-      await RoomManagerService.getInstance().joinRoom(room)
-      hilog.info(0, TAG, `Joined room: ${room.roomName}`)
-      this.navigateToRoomDetail(room)
+      const data = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, this.currentRoomInfo.roomId)
+      pasteboard.getSystemPasteboard().setData(data)
+      promptAction.showToast({ message: '房间号已复制', duration: 1500 })
+    } catch (err) {
+      hilog.error(0, TAG, 'Copy room id failed')
+    }
+  }
+
+  private showError(msg: string): void {
+    this.errorMessage = msg
+    promptAction.showToast({ message: msg, duration: 2000 })
+  }
+
+  onJoinRoom(room: Room): void {
+    if (room.memberCount >= room.maxMember) {
+      this.showError('房间已满，无法加入')
+      return
+    }
+    this.selectedRoom = room
+    this.showJoinConfirm = true
+  }
+
+  async confirmJoinRoom(): Promise<void> {
+    if (!this.selectedRoom) return
+    this.showJoinConfirm = false
+
+    try {
+      await RoomManagerService.getInstance().joinRoom(this.selectedRoom)
+      hilog.info(0, TAG, `Joined room: ${this.selectedRoom.roomName}`)
+      this.navigateToRoomDetail(this.selectedRoom)
     } catch (err) {
       hilog.error(0, TAG, 'Failed to join room')
-      this.errorMessage = '加入房间失败，请重试'
+      this.showError('加入房间失败，请重试')
     }
   }
 
+  // 点击扫码加入 - 跳转到独立的扫码识别页
   onScanClick(): void {
-    this.scanResult = '请将二维码放入框内扫描'
-    this.showScanDialog = true
-    this.startMockScan()
+    try {
+      router.pushUrl({ url: 'pages/theater/ScanQrCodePage' })
+    } catch (err) {
+      hilog.error(0, TAG, 'Navigate to scan page failed')
+      this.showError('无法打开扫码页面')
+    }
   }
 
-  startMockScan(): void {
-    setTimeout(() => {
-      this.scanResult = '扫描成功，正在加入房间...'
-      setTimeout(() => {
-        this.handleScanResult('scanned_room_001')
-      }, 1000)
-    }, 2000)
-  }
-
+  // 处理扫码识别结果（由 ScanQrCodePage 返回时调用）
   handleScanResult(result: string): void {
     hilog.info(0, TAG, `Handle scan result: ${result}`)
-    this.showScanDialog = false
+    if (!result || result.trim().length === 0) {
+      this.showError('扫码结果为空，请重新扫码')
+      return
+    }
 
-    const mockRoom: Room = {
-      roomId: result,
-      roomName: '扫码加入的房间',
-      hostId: 'scan_host',
-      hostName: '房主',
+    const trimmed: string = result.trim()
+    let roomId: string = ''
+    let roomName: string = '扫码加入的房间'
+    let hostName: string = '房主'
+
+    // 解析标准协议格式: movietheater://join?roomId=xxx&roomName=xxx&host=xxx
+    if (trimmed.startsWith('movietheater://join?')) {
+      const queryStr: string = trimmed.substring('movietheater://join?'.length)
+      const params: string[] = queryStr.split('&')
+      for (let i = 0; i < params.length; i++) {
+        const kv: string[] = params[i].split('=')
+        if (kv.length === 2) {
+          const key: string = kv[0]
+          const value: string = decodeURIComponent(kv[1])
+          if (key === 'roomId') {
+            roomId = value
+          } else if (key === 'roomName') {
+            roomName = value
+          } else if (key === 'host') {
+            hostName = value
+          }
+        }
+      }
+    } else {
+      // 兼容纯 roomId 格式
+      roomId = trimmed
+    }
+
+    if (!roomId) {
+      this.showError('无效的二维码格式')
+      return
+    }
+
+    const room: Room = {
+      roomId: roomId,
+      roomName: roomName,
+      hostId: 'remote_host',
+      hostName: hostName,
       memberCount: 1,
       maxMember: 8,
       status: 'waiting',
       createdTime: Date.now(),
       members: []
     }
-    this.onJoinRoom(mockRoom)
+    this.onJoinRoom(room)
   }
 
   enterRoomDirectly(): void {
@@ -181,32 +252,45 @@ struct TheaterPage {
   }
 
   build() {
-    Column() {
-      this.TopBar()
+    Stack() {
+      Column() {
+        this.TopBar()
 
-      Scroll() {
-        Column() {
-          this.CoreActions()
+        Scroll() {
+          Column() {
+            this.CoreActions()
 
-          if (this.errorMessage) {
-            this.ErrorTip()
+            if (this.errorMessage) {
+              this.ErrorTip()
+            }
+
+            this.NearbyRooms()
+
+            this.UsageTips()
           }
-
-          this.NearbyRooms()
-
-          this.UsageTips()
+          .padding({ bottom: 100 })
         }
-        .padding({ bottom: 100 })
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
       }
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
+      .width('100%')
+      .height('100%')
+      .backgroundColor(Colors.background)
+
+      if (this.showCreateDialog) {
+        this.CreateRoomDialog()
+      }
+
+      if (this.showQrDialog) {
+        this.QrCodeDialog()
+      }
+
+      if (this.showJoinConfirm) {
+        this.JoinConfirmDialog()
+      }
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(Colors.background)
-    .overlay(this.CreateRoomDialog())
-    .overlay(this.QrCodeDialog())
-    .overlay(this.ScanDialog())
   }
 
   @Builder
@@ -252,6 +336,7 @@ struct TheaterPage {
   @Builder
   CoreActions() {
     Column() {
+      // 创建观影房按钮
       Column() {
         Row() {
           Text('➕')
@@ -269,6 +354,7 @@ struct TheaterPage {
               .fontColor('rgba(255,255,255,0.8)')
           }
           .margin({ left: Spacing.md })
+          .alignItems(HorizontalAlign.Start)
         }
         .width('100%')
       }
@@ -279,6 +365,7 @@ struct TheaterPage {
       .padding({ left: Spacing.xl, right: Spacing.xl })
       .shadow(Shadows.floating)
       .onClick(() => {
+        hilog.info(0, TAG, 'Create room button clicked')
         this.showCreateDialog = true
       })
 
@@ -423,7 +510,7 @@ struct TheaterPage {
           Text(room.roomName)
             .fontSize(FontSizes.body)
             .fontWeight(FontWeightValue.medium)
-            .fontColor(Colors.textPrimary)
+            .fontColor(room.memberCount >= room.maxMember ? Colors.textTertiary : Colors.textPrimary)
 
           Row({ space: 8 }) {
             Text('房主: ' + room.hostName)
@@ -436,7 +523,7 @@ struct TheaterPage {
 
             Text(room.memberCount + '/' + room.maxMember + '人')
               .fontSize(FontSizes.helper)
-              .fontColor(Colors.textSecondary)
+              .fontColor(room.memberCount >= room.maxMember ? Colors.error : Colors.textSecondary)
           }
           .margin({ top: 4 })
         }
@@ -445,7 +532,14 @@ struct TheaterPage {
         Blank()
 
         Row({ space: 8 }) {
-          if (room.status === 'playing') {
+          if (room.memberCount >= room.maxMember) {
+            Text('已满')
+              .fontSize(10)
+              .fontColor(Color.White)
+              .backgroundColor(Colors.error)
+              .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+              .borderRadius(BorderRadius.small)
+          } else if (room.status === 'playing') {
             Text('播放中')
               .fontSize(10)
               .fontColor(Color.White)
@@ -488,6 +582,7 @@ struct TheaterPage {
     .borderRadius(BorderRadius.large)
     .margin({ bottom: Spacing.md })
     .shadow(Shadows.card)
+    .opacity(room.memberCount >= room.maxMember ? 0.6 : 1)
     .onClick(() => {
       this.onJoinRoom(room)
     })
@@ -540,85 +635,220 @@ struct TheaterPage {
 
   @Builder
   CreateRoomDialog() {
-    if (this.showCreateDialog) {
-      Stack({ alignContent: Alignment.Center }) {
-        Column()
-          .width('100%')
-          .height('100%')
-          .backgroundColor('rgba(0,0,0,0.5)')
-          .onClick(() => {
-            this.showCreateDialog = false
-            this.roomName = ''
-          })
+    Stack({ alignContent: Alignment.Bottom }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('rgba(0,0,0,0.5)')
+        .onClick(() => {
+          this.closeCreateDialog()
+        })
+
+      Column() {
+        Row()
+          .width(40)
+          .height(4)
+          .borderRadius(2)
+          .backgroundColor('rgba(0,0,0,0.15)')
+          .margin({ top: Spacing.md, bottom: Spacing.lg })
+
+        Row() {
+          Column() {
+            Text('创建观影房')
+              .fontSize(FontSizes.largeTitle)
+              .fontWeight(FontWeightValue.bold)
+              .fontColor(Colors.textPrimary)
+
+            Text('邀请好友一起同步观影，分享美好时光')
+              .fontSize(FontSizes.helper)
+              .fontColor(Colors.textSecondary)
+              .margin({ top: Spacing.xs })
+          }
+          .alignItems(HorizontalAlign.Start)
+
+          Blank()
+        }
+        .width('100%')
+        .margin({ bottom: Spacing.xl })
 
         Column() {
-          Text('创建观影房')
-            .fontSize(FontSizes.sectionTitle)
-            .fontWeight(FontWeightValue.bold)
-            .fontColor(Colors.textPrimary)
-            .margin({ bottom: Spacing.lg })
-
           Text('房间名称')
             .fontSize(FontSizes.caption)
-            .fontColor(Colors.textSecondary)
+            .fontWeight(FontWeightValue.medium)
+            .fontColor(Colors.textPrimary)
             .margin({ bottom: Spacing.sm })
-            .width('100%')
 
-          TextInput({ placeholder: '请输入房间名称', text: this.roomName })
-            .width('100%')
-            .height(44)
-            .backgroundColor('#F5F5F5')
-            .borderRadius(BorderRadius.medium)
-            .padding({ left: Spacing.md, right: Spacing.md })
-            .onChange((value: string) => {
-              this.roomName = value
-            })
+          Row() {
+            Text('🎞️')
+              .fontSize(18)
+              .margin({ right: Spacing.sm })
 
-          Row({ space: Spacing.md }) {
-            Text('取消')
-              .fontSize(FontSizes.body)
-              .fontColor(Colors.textSecondary)
+            TextInput({ placeholder: '给自己的房间起个名字吧', text: this.roomName })
               .layoutWeight(1)
-              .height(44)
-              .textAlign(TextAlign.Center)
-              .backgroundColor('#F5F5F5')
-              .borderRadius(BorderRadius.medium)
-              .onClick(() => {
-                this.showCreateDialog = false
-                this.roomName = ''
-              })
-
-            Text('创建')
               .fontSize(FontSizes.body)
-              .fontColor(Color.White)
-              .fontWeight(FontWeightValue.medium)
-              .layoutWeight(1)
-              .height(44)
-              .textAlign(TextAlign.Center)
-              .backgroundColor(Colors.primary)
-              .borderRadius(BorderRadius.medium)
-              .onClick(() => {
-                this.onCreateRoom()
+              .fontColor(Colors.textPrimary)
+              .placeholderColor(Colors.textTertiary)
+              .onChange((value: string) => {
+                this.roomName = value
               })
+              .maxLength(20)
           }
           .width('100%')
-          .margin({ top: Spacing.xl })
+          .height(52)
+          .padding({ left: Spacing.lg, right: Spacing.lg })
+          .backgroundColor('#F7F8FA')
+          .borderRadius(BorderRadius.large)
         }
-        .width('80%')
-        .padding(Spacing.xl)
-        .backgroundColor(Color.White)
-        .borderRadius(BorderRadius.large)
+        .width('100%')
+        .margin({ bottom: Spacing.xl })
+
+        Column() {
+          Row() {
+            Text('房间主题')
+              .fontSize(FontSizes.caption)
+              .fontWeight(FontWeightValue.medium)
+              .fontColor(Colors.textPrimary)
+
+            Blank()
+
+            Text(this.getCurrentThemeName())
+              .fontSize(FontSizes.helper)
+              .fontColor(Colors.textSecondary)
+          }
+          .width('100%')
+          .margin({ bottom: Spacing.md })
+
+          Row({ space: Spacing.md }) {
+            ForEach(ROOM_THEMES, (theme: RoomTheme) => {
+              Column() {
+                Column() {
+                  Text(theme.icon)
+                    .fontSize(24)
+                }
+                .width(56)
+                .height(56)
+                .borderRadius(BorderRadius.large)
+                .justifyContent(FlexAlign.Center)
+                .backgroundColor(theme.bgColor)
+                .border({
+                  width: this.selectedThemeId === theme.id ? 2 : 0,
+                  color: Colors.primary
+                })
+
+                Text(theme.name)
+                  .fontSize(FontSizes.helper)
+                  .fontColor(this.selectedThemeId === theme.id ? Colors.primary : Colors.textSecondary)
+                  .margin({ top: Spacing.xs })
+              }
+              .onClick(() => {
+                this.selectedThemeId = theme.id
+              })
+            }, (theme: RoomTheme) => theme.id.toString())
+          }
+          .width('100%')
+        }
+        .width('100%')
+        .margin({ bottom: Spacing.xl })
+
+        Column() {
+          Row() {
+            Text('最大人数')
+              .fontSize(FontSizes.caption)
+              .fontWeight(FontWeightValue.medium)
+              .fontColor(Colors.textPrimary)
+
+            Blank()
+
+            Text('最多' + this.selectedMaxMember + '人')
+              .fontSize(FontSizes.helper)
+              .fontColor(Colors.textSecondary)
+          }
+          .width('100%')
+          .margin({ bottom: Spacing.md })
+
+          Row({ space: Spacing.md }) {
+            ForEach(MAX_MEMBER_OPTIONS, (num: number) => {
+              Column() {
+                Text(num.toString())
+                  .fontSize(FontSizes.body)
+                  .fontWeight(this.selectedMaxMember === num ? FontWeightValue.bold : FontWeightValue.medium)
+                  .fontColor(this.selectedMaxMember === num ? Color.White : Colors.textPrimary)
+              }
+              .width(56)
+              .height(40)
+              .borderRadius(BorderRadius.medium)
+              .justifyContent(FlexAlign.Center)
+              .backgroundColor(this.selectedMaxMember === num ? Colors.primary : '#F7F8FA')
+              .onClick(() => {
+                this.selectedMaxMember = num
+              })
+            }, (num: number) => num.toString())
+          }
+          .width('100%')
+        }
+        .width('100%')
+        .margin({ bottom: Spacing.xxl })
+
+        Row() {
+          Text('🎉  创建观影房')
+            .fontSize(FontSizes.body)
+            .fontWeight(FontWeightValue.semibold)
+            .fontColor(Color.White)
+        }
+        .width('100%')
+        .height(52)
+        .justifyContent(FlexAlign.Center)
+        .backgroundColor(this.roomName.trim().length > 0 ? Colors.primary : '#E0E0E0')
+        .borderRadius(BorderRadius.button)
+        .opacity(this.roomName.trim().length > 0 ? 1 : 0.5)
         .shadow(Shadows.floating)
+        .onClick(() => {
+          if (this.roomName.trim().length > 0) {
+            this.onCreateRoom()
+          }
+        })
+
+        Row()
+          .width('100%')
+          .height(20)
       }
       .width('100%')
-      .height('100%')
-      .position({ x: 0, y: 0 })
+      .padding({ left: Spacing.xl, right: Spacing.xl })
+      .backgroundColor(Color.White)
+      .borderRadius({ topLeft: 24, topRight: 24 })
     }
+    .width('100%')
+    .height('100%')
+  }
+
+  private getCurrentThemeName(): string {
+    for (let i = 0; i < ROOM_THEMES.length; i++) {
+      if (ROOM_THEMES[i].id === this.selectedThemeId) {
+        return ROOM_THEMES[i].name
+      }
+    }
+    return ''
+  }
+
+  private getThemeNameById(themeId: number): string {
+    for (let i = 0; i < ROOM_THEMES.length; i++) {
+      if (ROOM_THEMES[i].id === themeId) {
+        return ROOM_THEMES[i].name
+      }
+    }
+    return '默认主题'
+  }
+
+  private closeCreateDialog(): void {
+    this.showCreateDialog = false
+    this.roomName = ''
+    this.selectedThemeId = 1
+    this.selectedMaxMember = 8
   }
 
   @Builder
   QrCodeDialog() {
-    if (this.showQrDialog && this.currentRoomInfo) {
+    if (this.currentRoomInfo) {
       Stack({ alignContent: Alignment.Center }) {
         Column()
           .width('100%')
@@ -630,51 +860,88 @@ struct TheaterPage {
 
         Column() {
           Text('房间二维码')
-            .fontSize(FontSizes.sectionTitle)
+            .fontSize(FontSizes.largeTitle)
             .fontWeight(FontWeightValue.bold)
             .fontColor(Colors.textPrimary)
-            .margin({ bottom: Spacing.sm })
+            .margin({ bottom: Spacing.xs })
 
           Text(this.currentRoomInfo.roomName)
             .fontSize(FontSizes.body)
             .fontColor(Colors.textSecondary)
-            .margin({ bottom: Spacing.xl })
+            .margin({ bottom: Spacing.lg })
 
-          Column() {
-            ForEach(this.qrCells, (cell: QrCell) => {
-              Row()
-                .width(8)
-                .height(8)
-                .backgroundColor(cell.filled ? Color.Black : Color.White)
-                .position({ x: cell.x * 8, y: cell.y * 8 })
-            }, (cell: QrCell) => `${cell.x}-${cell.y}`)
+          QRCode(this.getQrContent())
+            .width(180)
+            .height(180)
+            .backgroundColor(Color.White)
+            .padding(10)
+            .borderRadius(BorderRadius.medium)
+            .shadow(Shadows.card)
+
+          Row() {
+            Text('房间号: ' + this.currentRoomInfo.roomId)
+              .fontSize(FontSizes.helper)
+              .fontColor(Colors.textTertiary)
+
+            Text('复制')
+              .fontSize(FontSizes.helper)
+              .fontColor(Colors.primary)
+              .margin({ left: Spacing.sm })
+              .onClick(() => {
+                this.copyRoomId()
+              })
           }
-          .width(168)
-          .height(168)
-          .backgroundColor(Color.White)
-          .padding(8)
-          .borderRadius(BorderRadius.medium)
+          .margin({ top: Spacing.md })
 
-          Text('扫码加入观影房')
+          Row() {
+            Column() {
+              Text(this.getThemeNameById(this.currentRoomInfo.themeId || 1))
+                .fontSize(FontSizes.caption)
+                .fontColor(Colors.textSecondary)
+            }
+            .alignItems(HorizontalAlign.Center)
+
+            Column() {
+              Text(this.currentRoomInfo.maxMember + '人房')
+                .fontSize(FontSizes.caption)
+                .fontColor(Colors.textSecondary)
+            }
+            .margin({ left: Spacing.xl })
+            .alignItems(HorizontalAlign.Center)
+
+            Column() {
+              Text('等待中')
+                .fontSize(FontSizes.caption)
+                .fontColor(Colors.secondary)
+            }
+            .margin({ left: Spacing.xl })
+            .alignItems(HorizontalAlign.Center)
+          }
+          .margin({ top: Spacing.md })
+
+          Text('扫码或分享房间号邀请好友加入')
             .fontSize(FontSizes.helper)
             .fontColor(Colors.textTertiary)
-            .margin({ top: Spacing.xl })
+            .margin({ top: Spacing.lg })
 
-          Text('进入房间')
-            .fontSize(FontSizes.body)
-            .fontColor(Color.White)
-            .fontWeight(FontWeightValue.medium)
-            .width('100%')
-            .height(44)
-            .textAlign(TextAlign.Center)
-            .backgroundColor(Colors.primary)
-            .borderRadius(BorderRadius.medium)
-            .margin({ top: Spacing.xl })
-            .onClick(() => {
-              this.enterRoomDirectly()
-            })
+          Row() {
+            Text('进入房间')
+              .fontSize(FontSizes.body)
+              .fontColor(Color.White)
+              .fontWeight(FontWeightValue.medium)
+          }
+          .width('100%')
+          .height(48)
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor(Colors.primary)
+          .borderRadius(BorderRadius.button)
+          .margin({ top: Spacing.xl })
+          .shadow(Shadows.floating)
+          .onClick(() => {
+            this.enterRoomDirectly()
+          })
         }
-        .width('80%')
+        .width('85%')
         .padding(Spacing.xl)
         .backgroundColor(Color.White)
         .borderRadius(BorderRadius.large)
@@ -683,77 +950,107 @@ struct TheaterPage {
       }
       .width('100%')
       .height('100%')
-      .position({ x: 0, y: 0 })
     }
   }
 
   @Builder
-  ScanDialog() {
-    if (this.showScanDialog) {
+  JoinConfirmDialog() {
+    if (this.selectedRoom) {
       Stack({ alignContent: Alignment.Center }) {
         Column()
           .width('100%')
           .height('100%')
-          .backgroundColor('rgba(0,0,0,0.8)')
+          .backgroundColor('rgba(0,0,0,0.5)')
           .onClick(() => {
-            this.showScanDialog = false
+            this.showJoinConfirm = false
           })
 
         Column() {
-          Text('扫码加入房间')
+          Text('加入房间')
             .fontSize(FontSizes.sectionTitle)
             .fontWeight(FontWeightValue.bold)
-            .fontColor(Color.White)
-            .margin({ bottom: Spacing.xl })
+            .fontColor(Colors.textPrimary)
+            .margin({ bottom: Spacing.md })
 
-          Stack({ alignContent: Alignment.Center }) {
-            Column()
-              .width(200)
-              .height(200)
-              .border({ width: 2, color: Colors.secondary })
+          Column() {
+            Row() {
+              Text('房间名称')
+                .fontSize(FontSizes.caption)
+                .fontColor(Colors.textSecondary)
+              Blank()
+              Text(this.selectedRoom.roomName)
+                .fontSize(FontSizes.caption)
+                .fontColor(Colors.textPrimary)
+            }
+            .width('100%')
+            .padding({ top: 8, bottom: 8 })
+
+            Row() {
+              Text('房主')
+                .fontSize(FontSizes.caption)
+                .fontColor(Colors.textSecondary)
+              Blank()
+              Text(this.selectedRoom.hostName)
+                .fontSize(FontSizes.caption)
+                .fontColor(Colors.textPrimary)
+            }
+            .width('100%')
+            .padding({ top: 8, bottom: 8 })
+
+            Row() {
+              Text('人数')
+                .fontSize(FontSizes.caption)
+                .fontColor(Colors.textSecondary)
+              Blank()
+              Text(this.selectedRoom.memberCount + '/' + this.selectedRoom.maxMember + '人')
+                .fontSize(FontSizes.caption)
+                .fontColor(Colors.textPrimary)
+            }
+            .width('100%')
+            .padding({ top: 8, bottom: 8 })
+          }
+          .width('100%')
+          .padding(Spacing.md)
+          .backgroundColor('#F8F9FA')
+          .borderRadius(BorderRadius.medium)
+          .margin({ bottom: Spacing.xl })
+
+          Row({ space: Spacing.md }) {
+            Text('取消')
+              .fontSize(FontSizes.body)
+              .fontColor(Colors.textSecondary)
+              .layoutWeight(1)
+              .height(44)
+              .textAlign(TextAlign.Center)
+              .backgroundColor('#F5F5F5')
               .borderRadius(BorderRadius.medium)
+              .onClick(() => {
+                this.showJoinConfirm = false
+              })
 
-            Column()
-              .width(200)
-              .height(2)
+            Text('确认加入')
+              .fontSize(FontSizes.body)
+              .fontColor(Color.White)
+              .fontWeight(FontWeightValue.medium)
+              .layoutWeight(1)
+              .height(44)
+              .textAlign(TextAlign.Center)
               .backgroundColor(Colors.primary)
-              .margin({ top: 0 })
+              .borderRadius(BorderRadius.medium)
+              .onClick(() => {
+                this.confirmJoinRoom()
+              })
           }
-          .width(200)
-          .height(200)
-
-          Text('将二维码放入框内扫描')
-            .fontSize(FontSizes.helper)
-            .fontColor('rgba(255,255,255,0.7)')
-            .margin({ top: Spacing.xl })
-
-          if (this.scanResult) {
-            Text(this.scanResult)
-              .fontSize(FontSizes.caption)
-              .fontColor(Colors.warning)
-              .margin({ top: Spacing.md })
-          }
-
-          Text('取消')
-            .fontSize(FontSizes.body)
-            .fontColor(Color.White)
-            .width(120)
-            .height(40)
-            .textAlign(TextAlign.Center)
-            .backgroundColor('rgba(255,255,255,0.2)')
-            .borderRadius(20)
-            .margin({ top: Spacing.xl })
-            .onClick(() => {
-              this.showScanDialog = false
-            })
+          .width('100%')
         }
-        .width('85%')
+        .width('80%')
         .padding(Spacing.xl)
+        .backgroundColor(Color.White)
+        .borderRadius(BorderRadius.large)
         .alignItems(HorizontalAlign.Center)
       }
       .width('100%')
       .height('100%')
-      .position({ x: 0, y: 0 })
     }
   }
 }
