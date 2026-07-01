@@ -27,6 +27,7 @@ export interface Drama {
   watchProgress: number
   addedTime: number
   lastWatchTime: number
+  playlistId: number
 }
 
 // 今日更新
@@ -147,7 +148,8 @@ export function createDrama(
   totalEpisodes: number,
   watchProgress: number,
   addedTime: number,
-  lastWatchTime: number
+  lastWatchTime: number,
+  playlistId: number // 改动1：新增片单ID入参
 ): Drama {
   const d: Drama = {
     id: id,
@@ -158,7 +160,8 @@ export function createDrama(
     totalEpisodes: totalEpisodes,
     watchProgress: watchProgress,
     addedTime: addedTime,
-    lastWatchTime: lastWatchTime
+    lastWatchTime: lastWatchTime,
+    playlistId: playlistId // 改动2：把入参赋值给对象字段
   }
   return d
 }
@@ -345,17 +348,17 @@ function getMockDramas(): Drama[] {
   const movies: Movie[] = getMockMovies()
   const list: Drama[] = []
   list.push(createDrama(1, 1, movies[0], 'watching', 28, 30, 93,
-    Date.now() - 30 * 24 * 60 * 60 * 1000, Date.now() - 2 * 60 * 60 * 1000))
+    Date.now() - 30 * 24 * 60 * 60 * 1000, Date.now() - 2 * 60 * 60 * 1000, 2))
   list.push(createDrama(2, 2, movies[1], 'watching', 15, 36, 42,
-    Date.now() - 15 * 24 * 60 * 60 * 1000, Date.now() - 24 * 60 * 60 * 1000))
+    Date.now() - 15 * 24 * 60 * 60 * 1000, Date.now() - 24 * 60 * 60 * 1000, 2))
   list.push(createDrama(3, 3, movies[2], 'finished', 8, 8, 100,
-    Date.now() - 60 * 24 * 60 * 60 * 1000, Date.now() - 7 * 24 * 60 * 60 * 1000))
+    Date.now() - 60 * 24 * 60 * 60 * 1000, Date.now() - 7 * 24 * 60 * 60 * 1000, 4))
   list.push(createDrama(4, 7, movies[6], 'want', 0, 54, 0,
-    Date.now() - 5 * 24 * 60 * 60 * 1000, 0))
+    Date.now() - 5 * 24 * 60 * 60 * 1000, 0, 3))
   list.push(createDrama(5, 8, movies[7], 'finished', 39, 39, 100,
-    Date.now() - 90 * 24 * 60 * 60 * 1000, Date.now() - 30 * 24 * 60 * 60 * 1000))
+    Date.now() - 90 * 24 * 60 * 60 * 1000, Date.now() - 30 * 24 * 60 * 60 * 1000, 3))
   list.push(createDrama(6, 4, movies[3], 'watching', 1, 1, 100,
-    Date.now() - 3 * 24 * 60 * 60 * 1000, Date.now() - 3 * 24 * 60 * 60 * 1000))
+    Date.now() - 3 * 24 * 60 * 60 * 1000, Date.now() - 3 * 24 * 60 * 60 * 1000, 2))
   return list
 }
 
@@ -363,7 +366,7 @@ export const mockDramas: Drama[] = getMockDramas()
 
 function getMockPlaylists(): Playlist[] {
   const list: Playlist[] = []
-  list.push(createPlaylist(1, '全部', 6))
+  //list.push(createPlaylist(1, '全部', 6))
   list.push(createPlaylist(2, '寒假补番', 3))
   list.push(createPlaylist(3, '悬疑合集', 2))
   list.push(createPlaylist(4, '下饭剧', 2))
