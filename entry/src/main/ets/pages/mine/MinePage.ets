@@ -304,3 +304,7 @@ struct MinePage {
 }
 
 export default MinePage
+
+
+
+

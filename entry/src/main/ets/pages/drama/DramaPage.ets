@@ -1,31 +1,55 @@
 // 追剧页 - 多平台追剧管理
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../../utils/Constants'
 import { mockDramas, mockPlaylists, Drama, Playlist } from '../../model/MockData'
+import { VideoWebPage } from './VideoWebPage'
+import { hilog } from '@kit.PerformanceAnalysisKit'
+
+const TAG = 'DramaPage'
+
+interface NavPathParam {
+  url: string
+  title: string
+}
 
 @Component
-struct DramaPage {
+export struct DramaPage {
   @State private currentTab: number = 1
   @State private currentPlaylist: number = 1
+  @State pathStack: NavPathStack = new NavPathStack()
 
   private statusTabs: string[] = ['想看', '在看', '已看']
 
-  build() {
-    Column() {
-      // 顶部状态切换栏
-      this.StatusTabBar()
-
-      // 片单筛选横栏
-      this.PlaylistBar()
-
-      // 追剧卡片网格
-      this.DramaGrid()
-
-      // 悬浮添加按钮
-      this.AddButton()
+  @Builder
+  PageMap(name: string, param: Object) {
+    if (name === 'VideoWebPage') {
+      VideoWebPage({
+        url: (param as NavPathParam).url,
+        title: (param as NavPathParam).title
+      })
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(Colors.background)
+  }
+
+  build() {
+    Navigation(this.pathStack) {
+      Column() {
+        // 顶部状态切换栏
+        this.StatusTabBar()
+
+        // 片单筛选横栏
+        this.PlaylistBar()
+
+        // 追剧卡片网格
+        this.DramaGrid()
+
+        // 悬浮添加按钮
+        this.AddButton()
+      }
+      .width('100%')
+      .height('100%')
+      .backgroundColor(Colors.background)
+    }
+    .navDestination(this.PageMap)
+    .hideTitleBar(true)
   }
 
   @Builder
@@ -40,7 +64,6 @@ struct DramaPage {
                 .fontColor(this.currentTab === index ? Colors.primary : Colors.textSecondary)
                 .fontWeight(this.currentTab === index ? FontWeightValue.semibold : FontWeightValue.regular)
 
-              // 选中指示器
               if (this.currentTab === index) {
                 Row()
                   .width(24)
@@ -97,7 +120,6 @@ struct DramaPage {
             })
           })
 
-          // 新建片单按钮
           Row() {
             Text('+')
               .fontSize(FontSizes.body)
@@ -140,7 +162,6 @@ struct DramaPage {
     .scrollBar(BarState.Off)
   }
 
-  // 获取海报资源（支持本地资源和网络URL）
   private getPosterResource(name: string): Resource | string {
     if (name.startsWith('http')) {
       return name
@@ -178,7 +199,6 @@ struct DramaPage {
   DramaCard(drama: Drama) {
     Column() {
       Stack({ alignContent: Alignment.TopEnd }) {
-        // 海报
         Image(this.getPosterResource(drama.movie.posterUrl))
           .width('100%')
           .height(160)
@@ -186,7 +206,6 @@ struct DramaPage {
           .objectFit(ImageFit.Cover)
           .backgroundColor('#E0E0E0')
 
-        // 状态标签
         Text(this.getStatusText(drama.status))
           .fontSize(10)
           .fontColor(Color.White)
@@ -195,7 +214,6 @@ struct DramaPage {
           .borderRadius({ topRight: BorderRadius.large, bottomLeft: BorderRadius.small })
       }
 
-      // 剧名
       Text(drama.movie.title)
         .fontSize(FontSizes.caption)
         .fontColor(Colors.textPrimary)
@@ -203,7 +221,6 @@ struct DramaPage {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-      // 平台
       Row({ space: 4 }) {
         ForEach(drama.movie.platform.slice(0, 2), (p: string) => {
           Text(p)
@@ -213,7 +230,6 @@ struct DramaPage {
       }
       .margin({ top: 2 })
 
-      // 进度条
       if (drama.status === 'watching') {
         Column() {
           Row() {
@@ -225,14 +241,12 @@ struct DramaPage {
           .margin({ bottom: 4 })
 
           Stack() {
-            // 背景
             Row()
               .width('100%')
               .height(4)
               .backgroundColor('#E0E0E0')
               .borderRadius(2)
 
-            // 进度
             Row()
               .width(drama.watchProgress + '%')
               .height(4)
@@ -248,6 +262,25 @@ struct DramaPage {
     .backgroundColor(Color.White)
     .borderRadius(BorderRadius.large)
     .padding(Spacing.sm)
+    .onClick(() => {
+      this.onDramaClick(drama)
+    })
+  }
+
+  private onDramaClick(drama: Drama): void {
+    try {
+      const url = 'https://v.qq.com/x/cover/mzc00200whsp9r6/a0047l69jnp.html'
+      const param: NavPathParam = {
+        url: url,
+        title: drama.movie.title
+      }
+      this.pathStack.pushPath({
+        name: 'VideoWebPage',
+        param: param
+      })
+    } catch (err) {
+      hilog.error(0, TAG, 'Open video web page failed')
+    }
   }
 
   @Builder
@@ -261,7 +294,6 @@ struct DramaPage {
         .backgroundColor(Colors.primary)
         .borderRadius(28)
         .onClick(() => {
-          // 添加追剧
         })
     }
     .position({ x: '85%', y: '80%' })

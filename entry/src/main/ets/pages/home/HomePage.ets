@@ -83,7 +83,7 @@ struct HomePage {
         videoUrl = getTestVideoUrl(media.id)
       }
       router.pushUrl({
-        url: 'pages/VideoPlayerPage',
+        url: 'pages/home/VideoPlayerPage',
         params: {
           videoUrl: videoUrl,
           title: getMediaTitle(media),
@@ -447,7 +447,7 @@ struct HomePage {
             .onClick(() => {
               try {
                 router.pushUrl({
-                  url: 'pages/LibraryPage',
+                  url: 'pages/home/LibraryPage',
                   params: { categoryId: cat.id }
                 })
               } catch (err) {

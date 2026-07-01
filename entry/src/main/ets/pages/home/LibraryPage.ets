@@ -63,7 +63,7 @@ struct LibraryPage {
         videoUrl = media.trailer_url
       }
       router.pushUrl({
-        url: 'pages/VideoPlayerPage',
+        url: 'pages/home/VideoPlayerPage',
         params: {
           videoUrl: videoUrl,
           title: getMediaTitle(media),
