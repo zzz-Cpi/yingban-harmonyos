@@ -296,7 +296,7 @@ struct MinePage {
         .fontColor(Colors.textTertiary)
         .margin({ top: Spacing.md })
 
-      Text('影伴 v1.0.0')
+      Text('影伴 ')
         .fontSize(FontSizes.helper)
         .fontColor(Colors.textTertiary)
         .margin({ top: 4 })
