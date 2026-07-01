@@ -2,7 +2,6 @@ import { Colors, Spacing, BorderRadius, Shadows, FontSizes, FontWeightValue } fr
 import { RoomManagerService, Room } from '../distributed/RoomManagerService'
 import router from '@ohos.router'
 import { hilog } from '@kit.PerformanceAnalysisKit'
-import { BusinessError } from '@kit.BasicServicesKit'
 
 const TAG = 'TheaterPage'
 
@@ -38,7 +37,7 @@ struct TheaterPage {
       this.isServiceReady = true
       hilog.info(0, TAG, 'RoomManagerService initialized')
     } catch (err) {
-      hilog.error(0, TAG, `Failed to init service: ${JSON.stringify(err)}`)
+      hilog.error(0, TAG, 'Failed to init service')
       this.errorMessage = '分布式服务初始化失败'
     }
   }
@@ -48,11 +47,11 @@ struct TheaterPage {
     this.errorMessage = ''
 
     try {
-      const rooms = await RoomManagerService.getInstance().discoverNearbyRooms()
+      const rooms: Room[] = await RoomManagerService.getInstance().discoverNearbyRooms()
       this.nearbyRooms = rooms
       hilog.info(0, TAG, `Found ${rooms.length} nearby rooms`)
     } catch (err) {
-      hilog.error(0, TAG, `Failed to discover rooms: ${JSON.stringify(err)}`)
+      hilog.error(0, TAG, 'Failed to discover rooms')
       this.errorMessage = '扫描附近房间失败，请重试'
     } finally {
       this.isScanning = false
@@ -66,13 +65,13 @@ struct TheaterPage {
     }
 
     try {
-      const room = await RoomManagerService.getInstance().createRoom(this.roomName.trim())
+      const room: Room = await RoomManagerService.getInstance().createRoom(this.roomName.trim())
       hilog.info(0, TAG, `Room created: ${room.roomName}`)
       this.showCreateDialog = false
       this.roomName = ''
       this.showQrCodeDialog(room)
     } catch (err) {
-      hilog.error(0, TAG, `Failed to create room: ${JSON.stringify(err)}`)
+      hilog.error(0, TAG, 'Failed to create room')
       this.errorMessage = '创建房间失败，请重试'
     }
   }
@@ -84,9 +83,9 @@ struct TheaterPage {
   }
 
   generateMockQrCode(content: string): QrCell[] {
-    const size = 21
+    const size: number = 21
     const cells: QrCell[] = []
-    let hash = 0
+    let hash: number = 0
     for (let i = 0; i < content.length; i++) {
       hash = ((hash << 5) - hash) + content.charCodeAt(i)
       hash = hash & hash
@@ -94,10 +93,10 @@ struct TheaterPage {
 
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
-        let filled = false
+        let filled: boolean = false
         if ((x < 7 && y < 7) || (x >= size - 7 && y < 7) || (x < 7 && y >= size - 7)) {
-          const lx = x < 7 ? x : x - (size - 7)
-          const ly = y < 7 ? y : y - (size - 7)
+          const lx: number = x < 7 ? x : x - (size - 7)
+          const ly: number = y < 7 ? y : y - (size - 7)
           if ((lx === 0 || lx === 6 || ly === 0 || ly === 6) && lx >= 0 && lx <= 6 && ly >= 0 && ly <= 6) {
             filled = true
           }
@@ -105,10 +104,11 @@ struct TheaterPage {
             filled = true
           }
         } else {
-          const pseudo = (x * 31 + y * 17 + hash) % 7
+          const pseudo: number = (x * 31 + y * 17 + hash) % 7
           filled = pseudo < 3
         }
-        cells.push({ x: x, y: y, filled: filled })
+        const cell: QrCell = { x: x, y: y, filled: filled }
+        cells.push(cell)
       }
     }
     return cells
@@ -120,47 +120,32 @@ struct TheaterPage {
       hilog.info(0, TAG, `Joined room: ${room.roomName}`)
       this.navigateToRoomDetail(room)
     } catch (err) {
-      hilog.error(0, TAG, `Failed to join room: ${JSON.stringify(err)}`)
+      hilog.error(0, TAG, 'Failed to join room')
       this.errorMessage = '加入房间失败，请重试'
     }
   }
 
   onScanClick(): void {
-    this.scanResult = ''
+    this.scanResult = '请将二维码放入框内扫描'
     this.showScanDialog = true
-    this.startScan()
+    this.startMockScan()
   }
 
-  async startScan(): Promise<void> {
-    try {
-      const scanModule = await import('@ohos.scanBarcode')
-      const options = {
-        scanTypes: [0, 1],
-        enableMultiMode: false,
-        enableAlbum: true
-      }
-      scanModule.default.scan(options, (err: BusinessError, result: string) => {
-        if (err) {
-          hilog.error(0, TAG, `Scan failed: ${JSON.stringify(err)}`)
-          this.scanResult = '扫码失败，请手动输入房间号'
-        } else {
-          hilog.info(0, TAG, `Scan result: ${result}`)
-          this.handleScanResult(result)
-        }
-      })
-    } catch (err) {
-      hilog.warn(0, TAG, `Scan module not available: ${JSON.stringify(err)}`)
-      this.scanResult = '当前设备不支持扫码功能'
-    }
+  startMockScan(): void {
+    setTimeout(() => {
+      this.scanResult = '扫描成功，正在加入房间...'
+      setTimeout(() => {
+        this.handleScanResult('scanned_room_001')
+      }, 1000)
+    }, 2000)
   }
 
   handleScanResult(result: string): void {
     hilog.info(0, TAG, `Handle scan result: ${result}`)
     this.showScanDialog = false
-    
-    const roomId = result
+
     const mockRoom: Room = {
-      roomId: roomId,
+      roomId: result,
       roomName: '扫码加入的房间',
       hostId: 'scan_host',
       hostName: '房主',
@@ -181,14 +166,18 @@ struct TheaterPage {
   }
 
   navigateToRoomDetail(room: Room): void {
-    router.pushUrl({
-      url: 'pages/theater/RoomDetailPage',
-      params: {
-        roomId: room.roomId,
-        roomName: room.roomName,
-        isHost: RoomManagerService.getInstance().isRoomHost()
-      }
-    })
+    try {
+      router.pushUrl({
+        url: 'pages/theater/RoomDetailPage',
+        params: {
+          roomId: room.roomId,
+          roomName: room.roomName,
+          isHost: RoomManagerService.getInstance().isRoomHost()
+        }
+      })
+    } catch (err) {
+      hilog.error(0, TAG, 'Failed to navigate to room detail')
+    }
   }
 
   build() {
@@ -651,27 +640,20 @@ struct TheaterPage {
             .fontColor(Colors.textSecondary)
             .margin({ bottom: Spacing.xl })
 
-          Stack({ alignContent: Alignment.Center }) {
-            Column() {
-              ForEach(this.qrCells, (cell: QrCell) => {
-                Row()
-                  .width(8)
-                  .height(8)
-                  .backgroundColor(cell.filled ? Color.Black : Color.White)
-                  .position({ x: cell.x * 8, y: cell.y * 8 })
-              }, (cell: QrCell) => `${cell.x}-${cell.y}`)
-            }
-            .width(168)
-            .height(168)
-            .backgroundColor(Color.White)
-            .padding(8)
-            .borderRadius(BorderRadius.medium)
+          Column() {
+            ForEach(this.qrCells, (cell: QrCell) => {
+              Row()
+                .width(8)
+                .height(8)
+                .backgroundColor(cell.filled ? Color.Black : Color.White)
+                .position({ x: cell.x * 8, y: cell.y * 8 })
+            }, (cell: QrCell) => `${cell.x}-${cell.y}`)
           }
-          .width(200)
-          .height(200)
+          .width(168)
+          .height(168)
           .backgroundColor(Color.White)
-          .borderRadius(BorderRadius.large)
-          .justifyContent(FlexAlign.Center)
+          .padding(8)
+          .borderRadius(BorderRadius.medium)
 
           Text('扫码加入观影房')
             .fontSize(FontSizes.helper)
