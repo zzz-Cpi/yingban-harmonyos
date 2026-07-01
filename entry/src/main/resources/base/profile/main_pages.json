@@ -1,5 +1,8 @@
 {
   "src": [
-    "pages/Index"
+    "pages/Index",
+    "pages/theater/RoomDetailPage",
+    "pages/VideoPlayerPage",
+    "pages/SearchPage"
   ]
 }

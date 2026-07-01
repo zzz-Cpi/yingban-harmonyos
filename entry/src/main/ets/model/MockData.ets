@@ -47,7 +47,27 @@ export interface TheaterRoom {
   maxMember: number
   status: string
   movieTitle?: string
+  moviePoster?: string
   createdTime: number
+}
+
+// 房间成员
+export interface RoomMember {
+  id: string
+  name: string
+  avatar: string
+  isHost: boolean
+  isOnline: boolean
+}
+
+// 聊天消息
+export interface ChatMessage {
+  id: string
+  userId: string
+  userName: string
+  content: string
+  timestamp: number
+  type: string
 }
 
 // 观影笔记
@@ -168,7 +188,8 @@ export function createTheaterRoom(
   maxMember: number,
   status: string,
   createdTime: number,
-  movieTitle?: string
+  movieTitle?: string,
+  moviePoster?: string
 ): TheaterRoom {
   const r: TheaterRoom = {
     id: id,
@@ -178,6 +199,7 @@ export function createTheaterRoom(
     maxMember: maxMember,
     status: status,
     movieTitle: movieTitle,
+    moviePoster: moviePoster,
     createdTime: createdTime
   }
   return r
@@ -353,13 +375,43 @@ export const mockPlaylists: Playlist[] = getMockPlaylists()
 function getMockRooms(): TheaterRoom[] {
   const list: TheaterRoom[] = []
   list.push(createTheaterRoom('room001', '庆余年追剧团', '小李', 3, 8, 'waiting',
-    Date.now() - 10 * 60 * 1000))
+    Date.now() - 10 * 60 * 1000, '', ''))
   list.push(createTheaterRoom('room002', '繁花观影会', '阿明', 5, 6, 'playing',
-    Date.now() - 30 * 60 * 1000, '繁花'))
+    Date.now() - 30 * 60 * 1000, '繁花', poster('fanhua')))
+  list.push(createTheaterRoom('room003', '我的阿勒泰治愈局', '小雨', 2, 4, 'waiting',
+    Date.now() - 5 * 60 * 1000, '', ''))
+  list.push(createTheaterRoom('room004', '狂飙二刷走起', '强哥', 6, 8, 'playing',
+    Date.now() - 45 * 60 * 1000, '狂飙', poster('kuangbiao')))
   return list
 }
 
 export const mockRooms: TheaterRoom[] = getMockRooms()
+
+function getMockRoomMembers(): RoomMember[] {
+  const list: RoomMember[] = []
+  list.push({ id: 'u001', name: '阿明', avatar: '', isHost: true, isOnline: true })
+  list.push({ id: 'u002', name: '小李', avatar: '', isHost: false, isOnline: true })
+  list.push({ id: 'u003', name: '小雨', avatar: '', isHost: false, isOnline: true })
+  list.push({ id: 'u004', name: '强哥', avatar: '', isHost: false, isOnline: true })
+  list.push({ id: 'u005', name: '追剧少年', avatar: '', isHost: false, isOnline: true })
+  list.push({ id: 'u006', name: '电影迷', avatar: '', isHost: false, isOnline: false })
+  return list
+}
+
+export const mockRoomMembers: RoomMember[] = getMockRoomMembers()
+
+function getMockChatMessages(): ChatMessage[] {
+  const list: ChatMessage[] = []
+  list.push({ id: 'm001', userId: 'u001', userName: '阿明', content: '大家好，今天我们一起看繁花～', timestamp: Date.now() - 30 * 60 * 1000, type: 'text' })
+  list.push({ id: 'm002', userId: 'u002', userName: '小李', content: '来啦来啦！', timestamp: Date.now() - 28 * 60 * 1000, type: 'text' })
+  list.push({ id: 'm003', userId: 'u003', userName: '小雨', content: '这个剧我二刷了，超好看', timestamp: Date.now() - 25 * 60 * 1000, type: 'text' })
+  list.push({ id: 'm004', userId: 'u001', userName: '阿明', content: '我开始播放啦', timestamp: Date.now() - 20 * 60 * 1000, type: 'system' })
+  list.push({ id: 'm005', userId: 'u004', userName: '强哥', content: '这一段演得太好了', timestamp: Date.now() - 10 * 60 * 1000, type: 'text' })
+  list.push({ id: 'm006', userId: 'u005', userName: '追剧少年', content: '爷青回！', timestamp: Date.now() - 5 * 60 * 1000, type: 'text' })
+  return list
+}
+
+export const mockChatMessages: ChatMessage[] = getMockChatMessages()
 
 function getMockCategories(): Category[] {
   const list: Category[] = []
@@ -401,7 +453,8 @@ function createMockTMDBMedia(
   posterPath: string,
   voteAverage: number,
   releaseDate: string,
-  mediaType: string
+  mediaType: string,
+  trailerUrl?: string | Resource
 ): TMDBMedia {
   const m: TMDBMedia = {
     id: id,
@@ -420,19 +473,41 @@ function createMockTMDBMedia(
     adult: false,
     original_language: 'zh',
     original_title: mediaType === 'movie' ? title : undefined,
-    original_name: mediaType === 'tv' ? title : undefined
+    original_name: mediaType === 'tv' ? title : undefined,
+    trailer_url: trailerUrl
   }
   return m
 }
 
+const TRAILER_FANHUA: Resource = $rawfile('trailer_01.mp4')
+const TRAILER_QINGYUNIAN: Resource = $rawfile('trailer_02.mp4')
+const TRAILER_ALETAI: Resource = $rawfile('trailer_03.mp4')
+const TRAILER_FEICHI: Resource = $rawfile('trailer_04.mp4')
+const TRAILER_ZHONGDIBA: Resource = $rawfile('trailer_01.mp4')
+const TRAILER_BUSHANLIANG: Resource = $rawfile('trailer_02.mp4')
+const TRAILER_MANCHANG: Resource = $rawfile('trailer_03.mp4')
+const TRAILER_WAIPO: Resource = $rawfile('trailer_04.mp4')
+const TRAILER_TAOCHU: Resource = $rawfile('trailer_01.mp4')
+const TRAILER_MEIGUI: Resource = $rawfile('trailer_02.mp4')
+const TRAILER_JINYONG: Resource = $rawfile('trailer_03.mp4')
+const TRAILER_MOYU: Resource = $rawfile('trailer_04.mp4')
+const TRAILER_DUHUANIAN: Resource = $rawfile('trailer_01.mp4')
+const TRAILER_RELAGUTANG: Resource = $rawfile('trailer_02.mp4')
+const TRAILER_DIERSHOUTIAO: Resource = $rawfile('trailer_03.mp4')
+const TRAILER_YIQIYAO: Resource = $rawfile('trailer_04.mp4')
+const TRAILER_XIONGCHUMO: Resource = $rawfile('trailer_01.mp4')
+const TRAILER_HONGTAN: Resource = $rawfile('trailer_02.mp4')
+const TRAILER_DAHONGBAO: Resource = $rawfile('trailer_03.mp4')
+const TRAILER_SAOHEI: Resource = $rawfile('trailer_04.mp4')
+
 function getMockNowPlaying(): TMDBListResponse {
   const list: TMDBMedia[] = []
-  list.push(createMockTMDBMedia(1, '繁花', 'poster_fanhua', 8.7, '2024-01-01', 'tv'))
-  list.push(createMockTMDBMedia(2, '庆余年 第二季', 'poster_qingyunian', 8.5, '2024-05-16', 'tv'))
-  list.push(createMockTMDBMedia(3, '我的阿勒泰', 'poster_aletai', 8.9, '2024-05-01', 'tv'))
-  list.push(createMockTMDBMedia(4, '飞驰人生2', 'poster_feichi', 8.0, '2024-02-10', 'movie'))
-  list.push(createMockTMDBMedia(5, '种地吧 第二季', 'poster_zhongdiba', 8.6, '2024-03-01', 'tv'))
-  list.push(createMockTMDBMedia(6, '不够善良的我们', 'poster_bushanliang', 8.8, '2024-04-01', 'tv'))
+  list.push(createMockTMDBMedia(1, '繁花', 'poster_fanhua', 8.7, '2024-01-01', 'tv', TRAILER_FANHUA))
+  list.push(createMockTMDBMedia(2, '庆余年 第二季', 'poster_qingyunian', 8.5, '2024-05-16', 'tv', TRAILER_QINGYUNIAN))
+  list.push(createMockTMDBMedia(3, '我的阿勒泰', 'poster_aletai', 8.9, '2024-05-01', 'tv', TRAILER_ALETAI))
+  list.push(createMockTMDBMedia(4, '飞驰人生2', 'poster_feichi', 8.0, '2024-02-10', 'movie', TRAILER_FEICHI))
+  list.push(createMockTMDBMedia(5, '种地吧 第二季', 'poster_zhongdiba', 8.6, '2024-03-01', 'tv', TRAILER_ZHONGDIBA))
+  list.push(createMockTMDBMedia(6, '不够善良的我们', 'poster_bushanliang', 8.8, '2024-04-01', 'tv', TRAILER_BUSHANLIANG))
   const res: TMDBListResponse = {
     page: 1,
     results: list,
@@ -446,14 +521,14 @@ export const mockNowPlaying: TMDBListResponse = getMockNowPlaying()
 
 function getMockTrending(): TMDBListResponse {
   const list: TMDBMedia[] = []
-  list.push(createMockTMDBMedia(101, '漫长的季节', 'poster_manchangdeji', 9.1, '2023-04-22', 'tv'))
-  list.push(createMockTMDBMedia(102, '外婆的新世界', 'poster_waipodexinshijie', 8.4, '2023-05-01', 'tv'))
-  list.push(createMockTMDBMedia(103, '逃出白虎园', 'poster_taochubaihuyuan', 7.8, '2024-01-15', 'movie'))
-  list.push(createMockTMDBMedia(104, '玫瑰的故事', 'poster_meiguidagushi', 7.8, '2024-06-01', 'tv'))
-  list.push(createMockTMDBMedia(105, '我的阿勒泰', 'poster_aletai2', 8.9, '2024-05-01', 'tv'))
-  list.push(createMockTMDBMedia(106, '金庸武侠世界', 'poster_jinyongwuxia', 7.5, '2024-06-17', 'tv'))
-  list.push(createMockTMDBMedia(107, '墨雨云间', 'poster_moyuyunjian', 7.9, '2024-04-30', 'tv'))
-  list.push(createMockTMDBMedia(108, '度华年', 'poster_duhuanian', 7.6, '2024-06-28', 'tv'))
+  list.push(createMockTMDBMedia(101, '漫长的季节', 'poster_manchangdeji', 9.1, '2023-04-22', 'tv', TRAILER_MANCHANG))
+  list.push(createMockTMDBMedia(102, '外婆的新世界', 'poster_waipodexinshijie', 8.4, '2023-05-01', 'tv', TRAILER_WAIPO))
+  list.push(createMockTMDBMedia(103, '逃出白虎园', 'poster_taochubaihuyuan', 7.8, '2024-01-15', 'movie', TRAILER_TAOCHU))
+  list.push(createMockTMDBMedia(104, '玫瑰的故事', 'poster_meiguidagushi', 7.8, '2024-06-01', 'tv', TRAILER_MEIGUI))
+  list.push(createMockTMDBMedia(105, '我的阿勒泰', 'poster_aletai2', 8.9, '2024-05-01', 'tv', TRAILER_ALETAI))
+  list.push(createMockTMDBMedia(106, '金庸武侠世界', 'poster_jinyongwuxia', 7.5, '2024-06-17', 'tv', TRAILER_JINYONG))
+  list.push(createMockTMDBMedia(107, '墨雨云间', 'poster_moyuyunjian', 7.9, '2024-04-30', 'tv', TRAILER_MOYU))
+  list.push(createMockTMDBMedia(108, '度华年', 'poster_duhuanian', 7.6, '2024-06-28', 'tv', TRAILER_DUHUANIAN))
   const res: TMDBListResponse = {
     page: 1,
     results: list,
@@ -467,14 +542,14 @@ export const mockTrending: TMDBListResponse = getMockTrending()
 
 function getMockPopularMovies(): TMDBListResponse {
   const list: TMDBMedia[] = []
-  list.push(createMockTMDBMedia(201, '飞驰人生2', 'poster_feichi', 8.0, '2024-02-10', 'movie'))
-  list.push(createMockTMDBMedia(202, '热辣滚烫', 'poster_relaguangtang', 7.5, '2024-02-10', 'movie'))
-  list.push(createMockTMDBMedia(203, '第二十条', 'poster_diershitiao', 7.8, '2024-02-10', 'movie'))
-  list.push(createMockTMDBMedia(204, '我们一起摇太阳', 'poster_womenyiqi', 7.7, '2024-02-10', 'movie'))
-  list.push(createMockTMDBMedia(205, '熊出没·逆转时空', 'poster_xiongchumo', 7.6, '2024-02-10', 'movie'))
-  list.push(createMockTMDBMedia(206, '红毯先生', 'poster_hongtanxiansheng', 7.2, '2024-02-10', 'movie'))
-  list.push(createMockTMDBMedia(207, '大红包', 'poster_dahongbao', 6.5, '2024-01-01', 'movie'))
-  list.push(createMockTMDBMedia(208, '扫黑·决不放弃', 'poster_saohei', 6.8, '2024-03-02', 'movie'))
+  list.push(createMockTMDBMedia(201, '飞驰人生2', 'poster_feichi', 8.0, '2024-02-10', 'movie', TRAILER_FEICHI))
+  list.push(createMockTMDBMedia(202, '热辣滚烫', 'poster_relaguangtang', 7.5, '2024-02-10', 'movie', TRAILER_RELAGUTANG))
+  list.push(createMockTMDBMedia(203, '第二十条', 'poster_diershitiao', 7.8, '2024-02-10', 'movie', TRAILER_DIERSHOUTIAO))
+  list.push(createMockTMDBMedia(204, '我们一起摇太阳', 'poster_womenyiqi', 7.7, '2024-02-10', 'movie', TRAILER_YIQIYAO))
+  list.push(createMockTMDBMedia(205, '熊出没·逆转时空', 'poster_xiongchumo', 7.6, '2024-02-10', 'movie', TRAILER_XIONGCHUMO))
+  list.push(createMockTMDBMedia(206, '红毯先生', 'poster_hongtanxiansheng', 7.2, '2024-02-10', 'movie', TRAILER_HONGTAN))
+  list.push(createMockTMDBMedia(207, '大红包', 'poster_dahongbao', 6.5, '2024-01-01', 'movie', TRAILER_DAHONGBAO))
+  list.push(createMockTMDBMedia(208, '扫黑·决不放弃', 'poster_saohei', 6.8, '2024-03-02', 'movie', TRAILER_SAOHEI))
   const res: TMDBListResponse = {
     page: 1,
     results: list,
@@ -488,14 +563,14 @@ export const mockPopularMovies: TMDBListResponse = getMockPopularMovies()
 
 function getMockOnAirTv(): TMDBListResponse {
   const list: TMDBMedia[] = []
-  list.push(createMockTMDBMedia(301, '度华年', 'poster_duhuanian', 7.6, '2024-06-28', 'tv'))
-  list.push(createMockTMDBMedia(302, '金庸武侠世界', 'poster_jinyongwuxia', 7.5, '2024-06-17', 'tv'))
-  list.push(createMockTMDBMedia(303, '墨雨云间', 'poster_moyuyunjian', 7.9, '2024-04-30', 'tv'))
-  list.push(createMockTMDBMedia(304, '玫瑰的故事', 'poster_meiguidagushi', 7.8, '2024-06-01', 'tv'))
-  list.push(createMockTMDBMedia(305, '我的阿勒泰', 'poster_aletai', 8.9, '2024-05-01', 'tv'))
-  list.push(createMockTMDBMedia(306, '庆余年 第二季', 'poster_qingyunian', 8.5, '2024-05-16', 'tv'))
-  list.push(createMockTMDBMedia(307, '繁花', 'poster_fanhua', 8.7, '2024-01-01', 'tv'))
-  list.push(createMockTMDBMedia(308, '不够善良的我们', 'poster_bushanliang', 8.8, '2024-04-01', 'tv'))
+  list.push(createMockTMDBMedia(301, '度华年', 'poster_duhuanian', 7.6, '2024-06-28', 'tv', TRAILER_DUHUANIAN))
+  list.push(createMockTMDBMedia(302, '金庸武侠世界', 'poster_jinyongwuxia', 7.5, '2024-06-17', 'tv', TRAILER_JINYONG))
+  list.push(createMockTMDBMedia(303, '墨雨云间', 'poster_moyuyunjian', 7.9, '2024-04-30', 'tv', TRAILER_MOYU))
+  list.push(createMockTMDBMedia(304, '玫瑰的故事', 'poster_meiguidagushi', 7.8, '2024-06-01', 'tv', TRAILER_MEIGUI))
+  list.push(createMockTMDBMedia(305, '我的阿勒泰', 'poster_aletai', 8.9, '2024-05-01', 'tv', TRAILER_ALETAI))
+  list.push(createMockTMDBMedia(306, '庆余年 第二季', 'poster_qingyunian', 8.5, '2024-05-16', 'tv', TRAILER_QINGYUNIAN))
+  list.push(createMockTMDBMedia(307, '繁花', 'poster_fanhua', 8.7, '2024-01-01', 'tv', TRAILER_FANHUA))
+  list.push(createMockTMDBMedia(308, '不够善良的我们', 'poster_bushanliang', 8.8, '2024-04-01', 'tv', TRAILER_BUSHANLIANG))
   const res: TMDBListResponse = {
     page: 1,
     results: list,

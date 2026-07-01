@@ -11,6 +11,18 @@
     {
       "name": "EntryAbility_label",
       "value": "label"
+    },
+    {
+      "name": "distributed_data_sync_reason",
+      "value": "用于分布式观影厅的数据同步"
+    },
+    {
+      "name": "get_network_info_reason",
+      "value": "用于获取网络状态以优化观影体验"
+    },
+    {
+      "name": "nearby_devices_reason",
+      "value": "用于发现附近的鸿蒙设备以创建观影房间"
     }
   ]
 }
