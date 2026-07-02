@@ -4,7 +4,7 @@ import { mockDramas, mockPlaylists, Drama, Playlist, createPlaylist } from '../m
 
 @Component
 struct DramaPage {
-  @State private currentTab: number = 1
+  @State private currentTab: number = 0
   @State private currentPlaylist: number = 1
   // 新建片单弹窗状态
   @State private showCreatePlaylistDialog: boolean = false
@@ -96,7 +96,7 @@ struct DramaPage {
           })
       }
       .width('100%')
-      .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.md })
+      .padding({ left: Spacing.lg, right: Spacing.lg, top: 8,bottom: 8 })
       .backgroundColor(Color.White)
     }
   }
@@ -112,7 +112,6 @@ struct DramaPage {
               .fontSize(FontSizes.caption)
               .fontColor(this.currentPlaylist === 1 ? Colors.primary : Colors.textSecondary)
 
-            // 统计全部剧集总数 (修复了原代码未传 statusKey 的问题)
             if (!this.isManageMode) {
               Text(this.getPlaylistTotal(0, this.getCurrentStatusKey()).toString())
                 .fontSize(10)
@@ -123,7 +122,9 @@ struct DramaPage {
                 .margin({ left: 4 })
             }
           }
-          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          .height(32)
+          .padding({ left: 12, right: 12 })
+          .alignItems(VerticalAlign.Center)
           .backgroundColor(this.currentPlaylist === 1 ? '#FFF0F0' : '#F5F5F5')
           .borderRadius(BorderRadius.small)
           .onClick(() => {
@@ -137,24 +138,21 @@ struct DramaPage {
                 .fontSize(FontSizes.caption)
                 .fontColor(this.currentPlaylist === playlist.id ? Colors.primary : Colors.textSecondary)
 
-              // ========== 修改：管理模式下显示删除小叉，非管理模式显示数量 ==========
               if (this.isManageMode) {
                 Text('×')
                   .fontSize(12)
                   .fontWeight(FontWeightValue.bold)
                   .fontColor(Color.White)
-                  .backgroundColor('#FF4D4F') // 红色删除按钮
+                  .backgroundColor('#FF4D4F')
                   .borderRadius(10)
                   .width(16)
                   .height(16)
                   .textAlign(TextAlign.Center)
                   .margin({ left: 6 })
                   .onClick(() => {
-                    // 删除片单逻辑
                     const index = mockPlaylists.findIndex(p => p.id === playlist.id)
                     if (index > -1) {
                       mockPlaylists.splice(index, 1)
-                      // 如果删除的是当前选中的片单，回退到“全部”
                       if (this.currentPlaylist === playlist.id) {
                         this.currentPlaylist = 1
                       }
@@ -171,7 +169,9 @@ struct DramaPage {
                   .margin({ left: 4 })
               }
             }
-            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+            .height(32)
+            .padding({ left: 12, right: 12 })
+            .alignItems(VerticalAlign.Center)
             .backgroundColor(this.currentPlaylist === playlist.id ? '#FFF0F0' : '#F5F5F5')
             .borderRadius(BorderRadius.small)
             .onClick(() => {
@@ -179,11 +179,11 @@ struct DramaPage {
             })
           }, (item: Playlist) => item.id.toString() + this.playlistRefreshKey.toString())
 
-          // 新建片单按钮 (管理模式下隐藏)
+          // ========== 新建片单按钮 ==========
           if (!this.isManageMode) {
             Row() {
               Text('+')
-                .fontSize(FontSizes.body)
+                .fontSize(FontSizes.caption)
                 .fontColor(Colors.textSecondary)
 
               Text('新建')
@@ -191,7 +191,9 @@ struct DramaPage {
                 .fontColor(Colors.textSecondary)
                 .margin({ left: 2 })
             }
-            .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+            .height(32)
+            .padding({ left: 12, right: 12 })
+            .alignItems(VerticalAlign.Center)
             .borderRadius(BorderRadius.small)
             .border({ width: 1, color: Colors.textTertiary, style: BorderStyle.Dashed })
             .onClick(() => {
@@ -203,9 +205,13 @@ struct DramaPage {
       }
       .scrollable(ScrollDirection.Horizontal)
       .scrollBar(BarState.Off)
+      .align(Alignment.Start)
+      .width('100%')
     }
+    .constraintSize({ minHeight: 44 })
     .width('100%')
-    .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.md })
+    // 【核心修复】：在这里加上 bottom: Spacing.md，给下面留出呼吸感
+    .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.md })
     .backgroundColor(Color.White)
   }
 
