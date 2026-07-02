@@ -210,8 +210,7 @@ struct DramaPage {
     }
     .constraintSize({ minHeight: 44 })
     .width('100%')
-    // 【核心修复】：在这里加上 bottom: Spacing.md，给下面留出呼吸感
-    .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.md })
+    .padding({ left: Spacing.lg, right: Spacing.lg, top: 10, bottom: 7 })
     .backgroundColor(Color.White)
   }
 
