@@ -6,6 +6,7 @@ import router from '@ohos.router'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import promptAction from '@ohos.promptAction'
 import window from '@ohos.window'
+import { SakuraLoading } from '../../components/SakuraLoading'
 
 const TAG = 'VideoPlayerPage'
 
@@ -362,8 +363,7 @@ struct VideoPlayerPage {
         // 加载中
         if (this.isLoading) {
           Column() {
-            Text('⏳')
-              .fontSize(40)
+            SakuraLoading()
             Text('加载中...')
               .fontSize(FontSizes.caption)
               .fontColor(Color.White)
@@ -378,8 +378,10 @@ struct VideoPlayerPage {
         // 错误提示
         if (this.errorMessage && !this.isLoading) {
           Column() {
-            Text('😢')
-              .fontSize(40)
+            Image($r('app.media.icon_mute'))
+              .width(40)
+              .height(40)
+              .objectFit(ImageFit.Contain)
             Text(this.errorMessage)
               .fontSize(FontSizes.caption)
               .fontColor(Color.White)
@@ -396,12 +398,10 @@ struct VideoPlayerPage {
           Row() {
             // 返回按钮 - 磨砂圆形
             Row() {
-              Text('←')
-                .fontSize(18)
-                .fontColor(Color.White)
-                .width('100%')
-                .height('100%')
-                .textAlign(TextAlign.Center)
+              Image($r('app.media.icon_arrow_left'))
+                .width(20)
+                .height(20)
+                .fillColor(Color.White)
                 .onClick(() => {
                   this.onBack()
                 })
@@ -432,7 +432,7 @@ struct VideoPlayerPage {
                 .borderRadius(18)
                 .scale({ x: this.shareBtnPressed ? 0.9 : 1, y: this.shareBtnPressed ? 0.9 : 1 })
 
-              Image($r('app.media.icon_plus'))
+              Image($r('app.media.icon_share'))
                 .width(18)
                 .height(18)
                 .objectFit(ImageFit.Contain)
@@ -452,7 +452,7 @@ struct VideoPlayerPage {
                 .borderRadius(18)
                 .scale({ x: this.favBtnPressed ? 0.9 : 1, y: this.favBtnPressed ? 0.9 : 1 })
 
-              Image($r('app.media.menu_favorite'))
+              Image($r('app.media.icon_mute'))
                 .width(18)
                 .height(18)
                 .objectFit(ImageFit.Contain)
@@ -520,7 +520,7 @@ struct VideoPlayerPage {
 
                   // isPlaying=true 表示正在播放，此时应显示暂停图标（点击后暂停）
                   // isPlaying=false 表示已暂停，此时应显示播放图标（点击后播放）
-                  Image(this.isPlaying ? $r('app.media.222') : $r('app.media.111'))
+                  Image(this.isPlaying ? $r('app.media.icon_pause') : $r('app.media.icon_play'))
                     .width(22)
                     .height(22)
                     .objectFit(ImageFit.Contain)
@@ -546,7 +546,7 @@ struct VideoPlayerPage {
                       .borderRadius(22)
                       .scale({ x: this.syncBtnPressed ? 0.92 : 1, y: this.syncBtnPressed ? 0.92 : 1 })
 
-                    Image($r('app.media.shuaxin'))
+                    Image($r('app.media.icon_people'))
                       .width(20)
                       .height(20)
                       .objectFit(ImageFit.Contain)
@@ -568,7 +568,7 @@ struct VideoPlayerPage {
                       .borderRadius(22)
                       .scale({ x: this.noteBtnPressed ? 0.92 : 1, y: this.noteBtnPressed ? 0.92 : 1 })
 
-                    Image($r('app.media.menu_note'))
+                    Image($r('app.media.icon_danmu'))
                       .width(20)
                       .height(20)
                       .objectFit(ImageFit.Contain)
@@ -587,9 +587,10 @@ struct VideoPlayerPage {
                       .borderRadius(20)
                       .scale({ x: this.fullscreenBtnPressed ? 0.92 : 1, y: this.fullscreenBtnPressed ? 0.92 : 1 })
 
-                    Text(this.isFullscreen ? '⛶' : '⛶')
-                      .fontSize(16)
-                      .fontColor(Color.White)
+                    Image($r('app.media.icon_fullscreen'))
+                      .width(18)
+                      .height(18)
+                      .objectFit(ImageFit.Contain)
                   }
                   .onClick(() => {
                     this.toggleFullscreen()
@@ -650,7 +651,7 @@ struct VideoPlayerPage {
         Row() {
           Button() {
             Row({ space: 8 }) {
-              Image($r('app.media.shuaxin'))
+              Image($r('app.media.icon_people'))
                   .width(18)
                   .height(18)
                   .objectFit(ImageFit.Contain)
@@ -676,7 +677,7 @@ struct VideoPlayerPage {
 
           Button() {
             Row({ space: 8 }) {
-              Image($r('app.media.menu_note'))
+              Image($r('app.media.icon_danmu'))
                   .width(18)
                   .height(18)
                   .objectFit(ImageFit.Contain)
@@ -865,8 +866,10 @@ struct VideoPlayerPage {
         Row({ space: 10 }) {
           if (this.rating > 0) {
             Row() {
-              Text('⭐')
-                .fontSize(12)
+              Image($r('app.media.icon_danmu'))
+                .width(12)
+                .height(12)
+                .objectFit(ImageFit.Contain)
               Text(this.rating.toFixed(1))
                 .fontSize(FontSizes.caption)
                 .fontColor(Color.White)
@@ -1089,8 +1092,9 @@ struct VideoPlayerPage {
   TipSection() {
     Column() {
       Row() {
-        Text('💡')
-          .fontSize(12)
+        Image($r('app.media.icon_danmu'))
+          .width(12)
+          .height(12)
           .opacity(0.6)
 
         Text('当前为测试片源，正式版将接入真实预告片')

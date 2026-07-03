@@ -142,7 +142,7 @@ struct SearchPage {
         }
         .layoutWeight(1)
         .height(40)
-        .backgroundColor('#F5F5F5')
+        .backgroundColor(Colors.cardBackground)
         .borderRadius(BorderRadius.medium)
         .padding({ left: 12, right: 12 })
         .margin({ left: Spacing.md })
@@ -161,7 +161,7 @@ struct SearchPage {
       }
       .width('100%')
       .padding({ left: Spacing.lg, right: Spacing.lg, top: 12, bottom: 12 })
-      .backgroundColor(Color.White)
+      .backgroundColor(Colors.background)
 
       // 搜索结果
       if (!this.hasSearched) {
@@ -179,7 +179,7 @@ struct SearchPage {
               Text(keyword)
                 .fontSize(FontSizes.caption)
                 .fontColor(Colors.textSecondary)
-                .backgroundColor('#F5F5F5')
+                .backgroundColor('#FFF0F0')
                 .borderRadius(BorderRadius.small)
                 .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                 .margin({ right: Spacing.sm, bottom: Spacing.sm })
@@ -280,7 +280,7 @@ struct SearchPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F8F9FA')
+    .backgroundColor(Colors.background)
   }
 }
 

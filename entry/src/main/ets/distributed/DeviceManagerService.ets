@@ -1,8 +1,11 @@
 import { DistributedConstants } from './DistributedConstants'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { distributedDeviceManager } from '@kit.DistributedServiceKit'
+import { Context } from '@kit.AbilityKit'
 
 const TAG = 'DeviceManagerService'
+
+const DEFAULT_BUNDLE_NAME = 'com.example.application'
 
 export interface DeviceInfo {
   deviceId: string
@@ -49,9 +52,20 @@ export class DeviceManagerService {
 
   async init(): Promise<void> {
     try {
+      // 从应用上下文获取真实 bundleName，确保分布式软总线能力可用
+      let bundleName = DEFAULT_BUNDLE_NAME
+      try {
+        const context: Context | undefined = AppStorage.get('appContext') as Context
+        if (context && context.applicationInfo && context.applicationInfo.name) {
+          bundleName = context.applicationInfo.name
+        }
+      } catch (ctxErr) {
+        hilog.warn(0, TAG, `Failed to get bundleName from context: ${JSON.stringify(ctxErr)}`)
+      }
+
       // 创建 DeviceManager 实例（传入应用 bundleName）
-      this.dmInstance = distributedDeviceManager.createDeviceManager('yingban_theater')
-      hilog.info(0, TAG, 'DeviceManagerService initialized')
+      this.dmInstance = distributedDeviceManager.createDeviceManager(bundleName)
+      hilog.info(0, TAG, `DeviceManagerService initialized with bundleName: ${bundleName}`)
 
       // 获取本地设备信息
       try {

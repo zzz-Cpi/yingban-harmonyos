@@ -8,6 +8,7 @@ const TAG = 'RoomManagerService'
 export interface Room {
   roomId: string
   roomName: string
+  roomCode?: string
   hostId: string
   hostName: string
   memberCount: number
@@ -95,8 +96,8 @@ export class RoomManagerService {
     const dataSync = DataSyncService.getInstance()
 
     dataSync.setOnPlayerStateChangeCallback((state: PlayerState) => {
-      if (this.currentRoom && state.hostId === this.currentRoom.hostId) {
-        hilog.info(0, TAG, `Player state change: ${state.action}`)
+      if (this.currentRoom) {
+        hilog.info(0, TAG, `Player state change: ${state.action}, hostId: ${state.hostId}, room host: ${this.currentRoom.hostId}`)
         if (this.onPlayerStateChangeCallback) {
           this.onPlayerStateChangeCallback(state)
         }
@@ -119,8 +120,8 @@ export class RoomManagerService {
         this.currentRoom.status = room.status
         this.currentRoom.movieTitle = room.movieTitle
         this.currentRoom.moviePoster = room.moviePoster
-        this.scanNearbyRoomsSilent()
       }
+      this.scanNearbyRoomsSilent()
     })
   }
 
@@ -151,6 +152,31 @@ export class RoomManagerService {
     })
   }
 
+  private generateRoomCode(roomId: string): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    let hash = this.hashCode(roomId)
+    if (hash === 0) {
+      hash = Date.now()
+    }
+    let num = Math.abs(hash)
+    let code = ''
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(num % chars.length)
+      num = Math.floor(num / chars.length)
+    }
+    return code
+  }
+
+  private hashCode(str: string): number {
+    let hash = 0
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash
+    }
+    return hash
+  }
+
   async createRoom(
     roomName: string,
     maxMember?: number,
@@ -161,7 +187,19 @@ export class RoomManagerService {
   ): Promise<Room> {
     await this.init()
 
+    if (this.currentRoom && this.isHost) {
+      try {
+        await DataSyncService.getInstance().delete(
+          DistributedConstants.KEY_ROOM_PREFIX + this.currentRoom.roomId
+        )
+        hilog.info(0, TAG, `Cleaned up previous room broadcast: ${this.currentRoom.roomId}`)
+      } catch (err) {
+        hilog.warn(0, TAG, `Failed to clean up previous room: ${JSON.stringify(err)}`)
+      }
+    }
+
     const roomId = 'room_' + this.localDeviceId + '_' + Date.now()
+    const roomCode = this.generateRoomCode(roomId)
     const hostId = this.localUserId
     const now = Date.now()
 
@@ -176,6 +214,7 @@ export class RoomManagerService {
     const room: Room = {
       roomId: roomId,
       roomName: roomName,
+      roomCode: roomCode,
       hostId: hostId,
       hostName: this.localUserName,
       memberCount: 1,
@@ -202,6 +241,7 @@ export class RoomManagerService {
       status: DistributedConstants.ROOM_STATUS_WAITING,
       movieTitle: movieTitle,
       moviePoster: moviePoster,
+      roomCode: roomCode,
       createdTime: now
     }
 
@@ -364,9 +404,9 @@ export class RoomManagerService {
     hilog.info(0, TAG, `Speed set to ${speed}x`)
   }
 
-  async sendChatMessage(content: string): Promise<void> {
+  async sendChatMessage(content: string, messageId?: string): Promise<ChatMessageSync> {
     const message: ChatMessageSync = {
-      id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+      id: messageId || ('msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000)),
       userId: this.localUserId,
       userName: this.localUserName,
       content: content,
@@ -374,7 +414,8 @@ export class RoomManagerService {
       type: DistributedConstants.MESSAGE_TYPE_CHAT
     }
 
-    await DataSyncService.getInstance().sendChatMessage(message)
+    await DataSyncService.getInstance().sendChatMessage(message, true)
+    return message
   }
 
   private async sendSystemMessage(content: string): Promise<void> {
@@ -397,10 +438,14 @@ export class RoomManagerService {
   async discoverNearbyRooms(): Promise<Room[]> {
     await this.init()
 
+    const dataSync = DataSyncService.getInstance()
+    const useDistributed = dataSync.isDistributedStoreEnabled()
+    hilog.info(0, TAG, `🔍 discoverNearbyRooms - distributed mode: ${useDistributed}`)
+
     let discoveredDevices: DeviceInfo[] = []
     try {
       discoveredDevices = await DeviceManagerService.getInstance().startDeviceDiscovery()
-      hilog.info(0, TAG, `Discovered ${discoveredDevices.length} devices`)
+      hilog.info(0, TAG, `📱 Discovered ${discoveredDevices.length} nearby devices`)
     } catch (err) {
       hilog.warn(0, TAG, `Device discovery failed: ${JSON.stringify(err)}`)
     }
@@ -408,14 +453,17 @@ export class RoomManagerService {
     const rooms: Room[] = []
 
     try {
-      const roomEntries = await DataSyncService.getInstance().getEntriesByPrefix(
+      hilog.info(0, TAG, `📦 Reading room broadcasts from KVStore...`)
+      const roomEntries = await dataSync.getEntriesByPrefix(
         DistributedConstants.KEY_ROOM_PREFIX
       )
-      hilog.info(0, TAG, `Found ${roomEntries.length} room broadcasts in KVStore`)
+      hilog.info(0, TAG, `📦 Found ${roomEntries.length} room entries in KVStore`)
 
       for (let i = 0; i < roomEntries.length; i++) {
         try {
+          hilog.info(0, TAG, `📦 Parsing room entry: ${roomEntries[i].key}`)
           const roomSync: RoomMemberSync = JSON.parse(roomEntries[i].value)
+
           const hostMember: RoomMember = {
             userId: roomSync.hostId,
             userName: roomSync.hostName,
@@ -425,6 +473,7 @@ export class RoomManagerService {
           const room: Room = {
             roomId: roomSync.roomId,
             roomName: roomSync.roomName,
+            roomCode: roomSync.roomCode,
             hostId: roomSync.hostId,
             hostName: roomSync.hostName,
             memberCount: roomSync.memberCount,
@@ -438,16 +487,18 @@ export class RoomManagerService {
 
           if (!rooms.find((r: Room) => r.roomId === room.roomId)) {
             rooms.push(room)
+            hilog.info(0, TAG, `✅ Added room: ${room.roomName} (host: ${room.hostName})`)
           }
         } catch (parseErr) {
           hilog.warn(0, TAG, `Failed to parse room data: ${JSON.stringify(parseErr)}`)
         }
       }
     } catch (err) {
-      hilog.warn(0, TAG, `Failed to read room broadcasts: ${JSON.stringify(err)}`)
+      hilog.error(0, TAG, `Failed to read room broadcasts: ${JSON.stringify(err)}`)
     }
 
     if (rooms.length === 0) {
+      hilog.info(0, TAG, `⚠️ No KVStore rooms found, using discovered devices as fallback`)
       for (let i = 0; i < discoveredDevices.length; i++) {
         const device = discoveredDevices[i]
         if (!device.isOnline) continue
@@ -470,11 +521,68 @@ export class RoomManagerService {
           members: [hostMember]
         }
         rooms.push(room)
+        hilog.info(0, TAG, `✅ Created device room: ${room.roomName}`)
       }
     }
 
-    hilog.info(0, TAG, `Total nearby rooms: ${rooms.length}`)
+    hilog.info(0, TAG, `🏠 Total nearby rooms: ${rooms.length}`)
     return rooms
+  }
+
+  async findRoomByCode(roomCode: string): Promise<Room | null> {
+    await this.init()
+
+    const normalizedCode = roomCode.trim().toUpperCase()
+    if (normalizedCode.length === 0) {
+      return null
+    }
+
+    const nearbyRooms = await this.discoverNearbyRooms()
+    for (let i = 0; i < nearbyRooms.length; i++) {
+      const room = nearbyRooms[i]
+      if (room.roomCode && room.roomCode.toUpperCase() === normalizedCode) {
+        return room
+      }
+    }
+
+    try {
+      const roomEntries = await DataSyncService.getInstance().getEntriesByPrefix(
+        DistributedConstants.KEY_ROOM_PREFIX
+      )
+      for (let i = 0; i < roomEntries.length; i++) {
+        try {
+          const roomSync: RoomMemberSync = JSON.parse(roomEntries[i].value)
+          if (roomSync.roomCode && roomSync.roomCode.toUpperCase() === normalizedCode) {
+            const hostMember: RoomMember = {
+              userId: roomSync.hostId,
+              userName: roomSync.hostName,
+              isHost: true,
+              isOnline: true
+            }
+            return {
+              roomId: roomSync.roomId,
+              roomName: roomSync.roomName,
+              roomCode: roomSync.roomCode,
+              hostId: roomSync.hostId,
+              hostName: roomSync.hostName,
+              memberCount: roomSync.memberCount,
+              maxMember: roomSync.maxMember,
+              status: roomSync.status,
+              movieTitle: roomSync.movieTitle,
+              moviePoster: roomSync.moviePoster,
+              createdTime: roomSync.createdTime,
+              members: [hostMember]
+            }
+          }
+        } catch (parseErr) {
+          hilog.warn(0, TAG, `Failed to parse room data: ${JSON.stringify(parseErr)}`)
+        }
+      }
+    } catch (err) {
+      hilog.warn(0, TAG, `Failed to search room by code: ${JSON.stringify(err)}`)
+    }
+
+    return null
   }
 
   private scanNearbyRoomsSilent(): void {
@@ -502,6 +610,10 @@ export class RoomManagerService {
 
   getLocalUserName(): string {
     return this.localUserName
+  }
+
+  getLocalDeviceId(): string {
+    return this.localDeviceId
   }
 
   setOnRoomCreatedCallback(callback: (room: Room) => void): void {

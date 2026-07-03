@@ -17,6 +17,25 @@ interface TMDBErrorResponse {
   success: boolean
 }
 
+// YouTube 解析 API 响应
+interface YouTubeFormat {
+  mimeType?: string
+  url?: string
+}
+
+interface YouTubeStreamingData {
+  formats?: YouTubeFormat[]
+  adaptiveFormats?: YouTubeFormat[]
+}
+
+interface YouTubeItem {
+  streamingData?: YouTubeStreamingData
+}
+
+interface YouTubeResponse {
+  items?: YouTubeItem[]
+}
+
 // TMDB API 配置
 const API_KEY: string = 'f8b0582660e61ee94a0ba88e46bcae7a'
 const BASE_URL: string = 'https://api.themoviedb.org/3'
@@ -221,24 +240,30 @@ export class TMDBService {
       })
 
       if (response.responseCode === 200 && response.result) {
-        const data: any = JSON.parse(response.result as string)
+        const data: YouTubeResponse = JSON.parse(response.result as string) as YouTubeResponse
         if (data.items && data.items.length > 0) {
-          const streamingData = data.items[0].streamingData
+          const streamingData: YouTubeStreamingData | undefined = data.items[0].streamingData
           if (streamingData) {
             if (streamingData.formats && streamingData.formats.length > 0) {
-              for (const format of streamingData.formats) {
+              for (let i: number = 0; i < streamingData.formats.length; i++) {
+                const format: YouTubeFormat = streamingData.formats[i]
                 if (format.mimeType && format.mimeType.includes('video/mp4') && format.url) {
                   return format.url
                 }
               }
-              return streamingData.formats[0].url
+              if (streamingData.formats[0].url) {
+                return streamingData.formats[0].url
+              }
             } else if (streamingData.adaptiveFormats && streamingData.adaptiveFormats.length > 0) {
-              for (const format of streamingData.adaptiveFormats) {
+              for (let i: number = 0; i < streamingData.adaptiveFormats.length; i++) {
+                const format: YouTubeFormat = streamingData.adaptiveFormats[i]
                 if (format.mimeType && format.mimeType.includes('video/mp4') && format.url) {
                   return format.url
                 }
               }
-              return streamingData.adaptiveFormats[0].url
+              if (streamingData.adaptiveFormats[0].url) {
+                return streamingData.adaptiveFormats[0].url
+              }
             }
           }
         }

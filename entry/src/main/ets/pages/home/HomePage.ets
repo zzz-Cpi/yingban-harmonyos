@@ -6,6 +6,7 @@ import { TMDBMedia, getImageUrl, getMediaTitle, getMediaYear, getTestVideoUrl, T
 import router from '@ohos.router'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import promptAction from '@ohos.promptAction'
+import { SakuraLoading } from '../../components/SakuraLoading'
 
 const TAG = 'HomePage'
 
@@ -276,12 +277,11 @@ struct HomePage {
   @Builder
   LoadingView() {
     Column() {
-      Text('⏳')
-        .fontSize(40)
+      SakuraLoading()
 
       Text('正在加载...')
         .fontSize(FontSizes.caption)
-        .fontColor('#A0A0A8') // 低饱和浅灰
+        .fontColor('#A0A0A8')
         .margin({ top: Spacing.md })
     }
     .width('100%')
@@ -352,27 +352,17 @@ struct HomePage {
   @Builder
   TopNavBar() {
     Row() {
-      // 左上角「影伴」文字Logo - 粉蓝渐变磨砂毛玻璃容器
-      Row() {
-        Text('影伴')
-          .fontSize(20) // 放大字号，更醒目
-          .fontWeight(600) // 加粗，半粗体
-          .linearGradient({
-            direction: GradientDirection.Right,
-            colors: [['#E8A0B0', 0], ['#A0C8D8', 1]] // 粉蓝渐变文字
-          })
-          .letterSpacing(1) // 适度字间距
-      }
-      .padding({ left: 14, right: 14, top: 10, bottom: 10 }) // 适度内边距
-      .backgroundColor('rgba(248,232,240,0.6)') // 低透明度粉蓝雾面背景
-      .backdropBlur(12) // 轻微毛玻璃模糊
-      .borderRadius(16) // 16dp大圆角
-      .border({ width: 1, color: 'rgba(232,160,176,0.2)' }) // 淡边框
-      .linearGradient({
-        direction: GradientDirection.Right,
-        colors: [[0x30E8A0B0, 0], [0x30A0C8D8, 1]] // 低饱和粉蓝渐变背景
-      })
-      .shadow({ radius: 8, color: 'rgba(232,160,176,0.1)', offsetX: 0, offsetY: 2 }) // 柔光阴影
+      Text('影伴')
+        .fontSize(28)
+        .fontWeight(700)
+        .letterSpacing(4)
+        .fontColor('#C8B8C0')
+        .textShadow([
+          { radius: 0, color: 'rgba(120,110,120,0.25)', offsetX: 0.8, offsetY: 0 },
+          { radius: 0, color: 'rgba(120,110,120,0.25)', offsetX: -0.8, offsetY: 0 },
+          { radius: 0, color: 'rgba(120,110,120,0.25)', offsetX: 0, offsetY: 0.8 },
+          { radius: 0, color: 'rgba(120,110,120,0.25)', offsetX: 0, offsetY: -0.8 }
+        ])
 
       Blank()
 

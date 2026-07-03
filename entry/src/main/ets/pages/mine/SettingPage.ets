@@ -81,7 +81,7 @@ struct SettingPage {
       .width('100%')
       .height(56)
       .padding({ left: Spacing.lg, right: Spacing.lg })
-      .backgroundColor(Color.White)
+      .backgroundColor(Colors.background)
 
       Divider().color('#EEEEEE')
 
@@ -123,7 +123,7 @@ struct SettingPage {
       }, (item: SettingRow) => item.id)
     }
     .width('100%')
-    .backgroundColor(Color.White)
+    .backgroundColor(Colors.cardBackground)
     .borderRadius(BorderRadius.medium)
   }
 

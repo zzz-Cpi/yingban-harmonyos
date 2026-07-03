@@ -4,6 +4,7 @@ import router from '@ohos.router'
 import pasteboard from '@ohos.pasteboard'
 import promptAction from '@ohos.promptAction'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { MiniSakuraLoading } from '../../components/SakuraLoading'
 
 const TAG = 'TheaterPage'
 const SCAN_RESULT_KEY = 'theater_scan_result'
@@ -12,18 +13,18 @@ const SCAN_RESULT_KEY = 'theater_scan_result'
 interface RoomTheme {
   id: number
   name: string
-  icon: string
+  icon: Resource
   gradientColors: string[]
   bgColor: string
 }
 
 const ROOM_THEMES: RoomTheme[] = [
-  { id: 1, name: '影院之夜', icon: '🎬', gradientColors: ['#667eea', '#764ba2'], bgColor: 'rgba(102,126,234,0.15)' },
-  { id: 2, name: '温馨小聚', icon: '🍿', gradientColors: ['#f093fb', '#f5576c'], bgColor: 'rgba(240,147,251,0.15)' },
-  { id: 3, name: '动漫乐园', icon: '🎌', gradientColors: ['#4facfe', '#00f2fe'], bgColor: 'rgba(79,172,254,0.15)' },
-  { id: 4, name: '经典怀旧', icon: '📽️', gradientColors: ['#fa709a', '#fee140'], bgColor: 'rgba(250,112,154,0.15)' },
-  { id: 5, name: '游戏之夜', icon: '🎮', gradientColors: ['#a8edea', '#fed6e3'], bgColor: 'rgba(168,237,234,0.15)' },
-  { id: 6, name: '静谧时光', icon: '🌙', gradientColors: ['#667eea', '#764ba2'], bgColor: 'rgba(26,26,46,0.12)' }
+  { id: 1, name: '影院之夜', icon: $r('app.media.theme_icon_1'), gradientColors: ['#667eea', '#764ba2'], bgColor: 'rgba(102,126,234,0.15)' },
+  { id: 2, name: '温馨小聚', icon: $r('app.media.theme_icon_2'), gradientColors: ['#f093fb', '#f5576c'], bgColor: 'rgba(240,147,251,0.15)' },
+  { id: 3, name: '动漫乐园', icon: $r('app.media.theme_icon_3'), gradientColors: ['#4facfe', '#00f2fe'], bgColor: 'rgba(79,172,254,0.15)' },
+  { id: 4, name: '经典怀旧', icon: $r('app.media.theme_icon_4'), gradientColors: ['#fa709a', '#fee140'], bgColor: 'rgba(250,112,154,0.15)' },
+  { id: 5, name: '游戏之夜', icon: $r('app.media.theme_icon_5'), gradientColors: ['#a8edea', '#fed6e3'], bgColor: 'rgba(168,237,234,0.15)' },
+  { id: 6, name: '静谧时光', icon: $r('app.media.theme_icon_6'), gradientColors: ['#667eea', '#764ba2'], bgColor: 'rgba(26,26,46,0.12)' }
 ]
 
 // 最大人数选项
@@ -45,26 +46,62 @@ struct TheaterPage {
   @State private showJoinConfirm: boolean = false
   @State private selectedRoom: Room | null = null
   @StorageProp(SCAN_RESULT_KEY) @Watch('onScanResultChanged') private scanResult: string = ''
+  private roomRefreshTimer: number = -1
 
   aboutToAppear() {
     this.initService()
     this.loadNearbyRooms()
     this.checkScanResult()
+    this.setupNearbyRoomCallback()
+    this.startRoomRefreshTimer()
   }
 
   onPageShow(): void {
     this.checkScanResult()
+    this.loadNearbyRooms()
+  }
+
+  onPageHide(): void {
+    this.stopRoomRefreshTimer()
+  }
+
+  aboutToDisappear(): void {
+    this.stopRoomRefreshTimer()
   }
 
   private onScanResultChanged(): void {
     this.checkScanResult()
   }
 
-  private checkScanResult(): void {
+  private setupNearbyRoomCallback(): void {
+    RoomManagerService.getInstance().setOnNearbyRoomUpdateCallback((rooms: Room[]) => {
+      hilog.info(0, TAG, `Received nearby rooms update: ${rooms.length} rooms`)
+      this.nearbyRooms = rooms
+      this.isScanning = false
+    })
+  }
+
+  private startRoomRefreshTimer(): void {
+    this.stopRoomRefreshTimer()
+    this.roomRefreshTimer = setInterval(() => {
+      this.loadNearbyRooms()
+    }, 3000)
+  }
+
+  private stopRoomRefreshTimer(): void {
+    if (this.roomRefreshTimer !== -1) {
+      clearInterval(this.roomRefreshTimer)
+      this.roomRefreshTimer = -1
+    }
+  }
+
+  private async checkScanResult(): Promise<void> {
     if (this.scanResult && this.scanResult.length > 0) {
       hilog.info(0, TAG, `Received scan result from AppStorage: ${this.scanResult}`)
+      const result = this.scanResult
       AppStorage.delete(SCAN_RESULT_KEY)
-      this.handleScanResult(this.scanResult)
+      this.scanResult = ''
+      await this.handleScanResult(result)
     }
   }
 
@@ -125,17 +162,18 @@ struct TheaterPage {
 
   private getQrContent(): string {
     if (!this.currentRoomInfo) return ''
-    return `movietheater://join?roomId=${this.currentRoomInfo.roomId}&roomName=${encodeURIComponent(this.currentRoomInfo.roomName)}&host=${encodeURIComponent(this.currentRoomInfo.hostName)}`
+    const roomCode = this.currentRoomInfo.roomCode || ''
+    return `movietheater://join?roomId=${this.currentRoomInfo.roomId}&roomCode=${roomCode}&roomName=${encodeURIComponent(this.currentRoomInfo.roomName)}&host=${encodeURIComponent(this.currentRoomInfo.hostName)}`
   }
 
-  private copyRoomId(): void {
-    if (!this.currentRoomInfo) return
+  private copyRoomCode(): void {
+    if (!this.currentRoomInfo || !this.currentRoomInfo.roomCode) return
     try {
-      const data = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, this.currentRoomInfo.roomId)
+      const data = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, this.currentRoomInfo.roomCode)
       pasteboard.getSystemPasteboard().setData(data)
       promptAction.showToast({ message: '房间号已复制', duration: 1500 })
     } catch (err) {
-      hilog.error(0, TAG, 'Copy room id failed')
+      hilog.error(0, TAG, 'Copy room code failed')
     }
   }
 
@@ -178,7 +216,7 @@ struct TheaterPage {
   }
 
   // 处理扫码识别结果（由 ScanQrCodePage 返回时调用）
-  handleScanResult(result: string): void {
+  async handleScanResult(result: string): Promise<void> {
     hilog.info(0, TAG, `Handle scan result: ${result}`)
     if (!result || result.trim().length === 0) {
       this.showError('扫码结果为空，请重新扫码')
@@ -187,20 +225,23 @@ struct TheaterPage {
 
     const trimmed: string = result.trim()
     let roomId: string = ''
+    let roomCode: string = ''
     let roomName: string = '扫码加入的房间'
     let hostName: string = '房主'
 
-    // 解析标准协议格式: movietheater://join?roomId=xxx&roomName=xxx&host=xxx
+    // 解析标准协议格式: movietheater://join?roomId=xxx&roomCode=xxx&roomName=xxx&host=xxx
     if (trimmed.startsWith('movietheater://join?')) {
       const queryStr: string = trimmed.substring('movietheater://join?'.length)
       const params: string[] = queryStr.split('&')
       for (let i = 0; i < params.length; i++) {
         const kv: string[] = params[i].split('=')
-        if (kv.length === 2) {
+        if (kv.length >= 2) {
           const key: string = kv[0]
           const value: string = decodeURIComponent(kv[1])
           if (key === 'roomId') {
             roomId = value
+          } else if (key === 'roomCode') {
+            roomCode = value
           } else if (key === 'roomName') {
             roomName = value
           } else if (key === 'host') {
@@ -208,28 +249,54 @@ struct TheaterPage {
           }
         }
       }
+    } else if (/^[A-Za-z0-9]{6}$/.test(trimmed)) {
+      // 6位字母数字当作房间号
+      roomCode = trimmed
     } else {
       // 兼容纯 roomId 格式
       roomId = trimmed
     }
 
-    if (!roomId) {
+    if (!roomId && !roomCode) {
       this.showError('无效的二维码格式')
       return
     }
 
-    const room: Room = {
-      roomId: roomId,
-      roomName: roomName,
-      hostId: 'remote_host',
-      hostName: hostName,
-      memberCount: 1,
-      maxMember: 8,
-      status: 'waiting',
-      createdTime: Date.now(),
-      members: []
+    // 优先通过房间号搜索附近真实房间
+    if (roomCode) {
+      try {
+        this.isScanning = true
+        const foundRoom = await RoomManagerService.getInstance().findRoomByCode(roomCode)
+        this.isScanning = false
+        if (foundRoom) {
+          this.onJoinRoom(foundRoom)
+          return
+        }
+      } catch (err) {
+        this.isScanning = false
+        hilog.warn(0, TAG, `Find room by code failed: ${JSON.stringify(err)}`)
+      }
     }
-    this.onJoinRoom(room)
+
+    // 未搜索到或仅有 roomId 时，构造房间对象尝试加入
+    if (roomId) {
+      const room: Room = {
+        roomId: roomId,
+        roomName: roomName,
+        roomCode: roomCode,
+        hostId: 'remote_host',
+        hostName: hostName,
+        memberCount: 1,
+        maxMember: 8,
+        status: 'waiting',
+        createdTime: Date.now(),
+        members: []
+      }
+      this.onJoinRoom(room)
+      return
+    }
+
+    this.showError('未找到对应房间，请确认房间号正确或房主已开启房间')
   }
 
   enterRoomDirectly(): void {
@@ -296,7 +363,7 @@ struct TheaterPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F8F9FB')
+    .backgroundColor(Colors.background)
   }
 
   // 背景朦胧渐变层 - 粉蓝梦幻柔和
@@ -357,10 +424,7 @@ struct TheaterPage {
 
       Row() {
         if (this.isScanning) {
-          LoadingProgress()
-            .width(18)
-            .height(18)
-            .color('#B0E0E6')
+          MiniSakuraLoading()
             .margin({ right: 8 })
         }
 
@@ -383,7 +447,7 @@ struct TheaterPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 12, bottom: 12 })
-    .backgroundColor('rgba(255,240,245,0.4)')
+    .backgroundColor(Colors.background)
     .backdropBlur(20)
   }
 
@@ -558,10 +622,7 @@ struct TheaterPage {
             .fontColor('#9A9AA3')
 
           if (this.isScanning) {
-            LoadingProgress()
-              .width(14)
-              .height(14)
-              .color('#B0E0E6')
+            MiniSakuraLoading()
           } else {
             Image($r('app.media.shuaxin'))
               .width(14)
@@ -882,8 +943,10 @@ struct TheaterPage {
             ForEach(ROOM_THEMES, (theme: RoomTheme) => {
               Column() {
                 Column() {
-                  Text(theme.icon)
-                    .fontSize(24)
+                  Image(theme.icon)
+                    .width(28)
+                    .height(28)
+                    .objectFit(ImageFit.Contain)
                 }
                 .width(56)
                 .height(56)
@@ -1039,7 +1102,7 @@ struct TheaterPage {
             .shadow(Shadows.card)
 
           Row() {
-            Text('房间号: ' + this.currentRoomInfo.roomId)
+            Text('房间号: ' + (this.currentRoomInfo.roomCode || this.currentRoomInfo.roomId))
               .fontSize(FontSizes.helper)
               .fontColor(Colors.textTertiary)
 
@@ -1048,7 +1111,7 @@ struct TheaterPage {
               .fontColor(Colors.primary)
               .margin({ left: Spacing.sm })
               .onClick(() => {
-                this.copyRoomId()
+                this.copyRoomCode()
               })
           }
           .margin({ top: Spacing.md })

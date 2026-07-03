@@ -78,7 +78,7 @@ struct MessagePage {
       .width('100%')
       .height(56)
       .padding({ left: Spacing.lg, right: Spacing.lg })
-      .backgroundColor(Color.White)
+      .backgroundColor(Colors.background)
 
       Divider().color('#EEEEEE')
 
@@ -90,6 +90,7 @@ struct MessagePage {
         }
         .width('100%')
         .padding(Spacing.lg)
+        .alignItems(HorizontalAlign.Start)
       }
       .layoutWeight(1)
       .scrollBar(BarState.Off)
@@ -148,7 +149,7 @@ struct MessagePage {
     }
     .width('100%')
     .padding(Spacing.md)
-    .backgroundColor(Color.White)
+    .backgroundColor(Colors.cardBackground)
     .borderRadius(BorderRadius.medium)
     .margin({ bottom: Spacing.md })
     .onClick(() => {

@@ -3,6 +3,9 @@ import { RoomManagerService, Room, RoomMember } from '../../distributed/RoomMana
 import { PlayerState, ChatMessageSync } from '../../distributed/DataSyncService'
 import router from '@ohos.router'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { mockMovies, Movie } from '../../model/MockData'
+import pasteboard from '@ohos.pasteboard'
+import promptAction from '@ohos.promptAction'
 
 const TAG = 'RoomDetailPage'
 
@@ -55,12 +58,17 @@ struct RoomDetailPage {
   @State private showMoreMenu: boolean = false
   @State private showLeaveConfirm: boolean = false
   @State private showMoviePicker: boolean = false
+  @State private showRoomInfo: boolean = false
   @State private danmakuList: DanmakuItem[] = []
   @State private showDanmaku: boolean = true
+  @State private currentMovieIndex: number = 0
+  @State private roomCode: string = ''
   private videoController: VideoController = new VideoController()
 
   private readonly TEST_VIDEO_URL: string = 'https://www.w3schools.com/html/mov_bbb.mp4'
   private danmakuColors: string[] = ['#FFFFFF', '#FFD700', '#00FF7F', '#FF6B6B', '#4ECDC4', '#A8E6CF']
+  
+  private availableMovies: Movie[] = mockMovies.slice(0, 2)
 
   aboutToAppear() {
     this.initPage()
@@ -103,6 +111,13 @@ struct RoomDetailPage {
         isOnline: true
       })
     }
+
+    this.roomCode = this.currentRoom?.roomCode || this.fallbackRoomCode()
+  }
+
+  private fallbackRoomCode(): string {
+    const roomId = this.roomId || this.currentRoom?.roomId || 'room_unknown'
+    return roomId.replace(/[^A-Za-z0-9]/g, '').slice(-6).toUpperCase()
   }
 
   private setupRoomCallbacks(): void {
@@ -163,32 +178,41 @@ struct RoomDetailPage {
     const room = RoomManagerService.getInstance().getCurrentRoom()
     if (room && room.members && room.members.length > 0) {
       for (let i = 0; i < room.members.length; i++) {
-        if (room.members[i].userId && room.members[i].userId !== 'local_user') {
+        if (room.members[i].deviceId === RoomManagerService.getInstance().getLocalDeviceId?.()) {
           return room.members[i].userId
         }
       }
     }
-    return 'local_user'
+    return 'local_user_' + Date.now()
   }
 
   private handleRemotePlayerState(state: PlayerState): void {
     switch (state.action) {
       case 'play':
         this.isPlaying = true
+        if (state.position > 0) {
+          this.videoController.setCurrentTime(state.position)
+        }
         this.videoController.start()
+        hilog.info(0, TAG, `Remote play command received, position: ${state.position}`)
         break
       case 'pause':
         this.isPlaying = false
         this.videoController.pause()
         if (state.position > 0) {
+          this.currentPosition = state.position
           this.videoController.setCurrentTime(state.position)
         }
+        hilog.info(0, TAG, `Remote pause command received, position: ${state.position}`)
         break
       case 'seek':
+        this.currentPosition = state.position
         this.videoController.setCurrentTime(state.position)
+        hilog.info(0, TAG, `Remote seek command received, position: ${state.position}`)
         break
       case 'speed':
         this.playbackSpeed = state.speed
+        hilog.info(0, TAG, `Remote speed command received, speed: ${state.speed}`)
         break
     }
   }
@@ -217,8 +241,6 @@ struct RoomDetailPage {
     if (!this.chatInput.trim()) return
 
     const content: string = this.chatInput.trim()
-    this.addDanmaku(content, '我', '#FFD700')
-
     const localMsg: ChatMessageSync = {
       id: 'msg_local_' + Date.now(),
       userId: this.getLocalUserId(),
@@ -227,12 +249,14 @@ struct RoomDetailPage {
       timestamp: Date.now(),
       type: 'chat'
     }
+
+    this.addDanmaku(content, '我', '#FFD700')
     this.chatMessages.push(localMsg)
     this.markMessageReceived(localMsg.id)
+    this.chatInput = ''
 
     try {
-      await RoomManagerService.getInstance().sendChatMessage(content)
-      this.chatInput = ''
+      await RoomManagerService.getInstance().sendChatMessage(content, localMsg.id)
     } catch (err) {
       hilog.error(0, TAG, `Failed to send message: ${JSON.stringify(err)}`)
     }
@@ -266,6 +290,25 @@ struct RoomDetailPage {
     const hours = date.getHours().toString().padStart(2, '0')
     const minutes = date.getMinutes().toString().padStart(2, '0')
     return `${hours}:${minutes}`
+  }
+
+  private getQrContent(): string {
+    const roomId = this.currentRoom?.roomId || this.roomId || ''
+    const roomName = this.roomName || this.currentRoom?.roomName || '观影房'
+    const hostName = this.currentRoom?.hostName || '房主'
+    const roomCode = this.roomCode || ''
+    return `movietheater://join?roomId=${roomId}&roomCode=${roomCode}&roomName=${encodeURIComponent(roomName)}&host=${encodeURIComponent(hostName)}`
+  }
+
+  private copyRoomCode(): void {
+    if (!this.roomCode) return
+    try {
+      const data = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, this.roomCode)
+      pasteboard.getSystemPasteboard().setData(data)
+      promptAction.showToast({ message: '房间号已复制', duration: 1500 })
+    } catch (err) {
+      hilog.error(0, TAG, `Copy room code failed: ${JSON.stringify(err)}`)
+    }
   }
 
   onBackClick(): void {
@@ -309,6 +352,10 @@ struct RoomDetailPage {
       if (this.showMoviePicker) {
         this.MoviePickerDialog()
       }
+
+      if (this.showRoomInfo) {
+        this.RoomInfoDialog()
+      }
     }
     .width('100%')
     .height('100%')
@@ -318,12 +365,11 @@ struct RoomDetailPage {
   TopBar() {
     Row() {
       Row({ space: 12 }) {
-        Text('‹')
-          .fontSize(24)
-          .fontColor(Color.White)
-          .width(40)
-          .height(40)
-          .textAlign(TextAlign.Center)
+        Image($r('app.media.icon_arrow_left'))
+          .width(24)
+          .height(24)
+          .objectFit(ImageFit.Contain)
+          .fillColor(Color.White)
           .onClick(() => {
             this.onBackClick()
           })
@@ -344,16 +390,21 @@ struct RoomDetailPage {
       Blank()
 
       Row({ space: 16 }) {
-        Text('👥')
-          .fontSize(20)
+        Image($r('app.media.icon_people'))
+          .width(20)
+          .height(20)
+          .objectFit(ImageFit.Contain)
+          .fillColor(Color.White)
           .onClick(() => {
             this.showMemberList = !this.showMemberList
             this.showMoreMenu = false
           })
 
-        Text('⋯')
-          .fontSize(20)
-          .fontColor(Color.White)
+        Image($r('app.media.feature_more'))
+          .width(20)
+          .height(20)
+          .objectFit(ImageFit.Contain)
+          .fillColor(Color.White)
           .onClick(() => {
             this.showMoreMenu = !this.showMoreMenu
             this.showMemberList = false
@@ -445,7 +496,7 @@ struct RoomDetailPage {
       Row({ space: Spacing.sm }) {
         Text(this.formatTime(this.currentPosition))
           .fontSize(10)
-          .fontColor('rgba(255,255,255,0.7)')
+          .fontColor('rgba(255,255,255,0.9)')
 
         Slider({
           value: this.currentPosition,
@@ -456,7 +507,7 @@ struct RoomDetailPage {
         })
           .layoutWeight(1)
           .blockColor(Colors.primary)
-          .trackColor('rgba(255,255,255,0.2)')
+          .trackColor('rgba(255,255,255,0.25)')
           .selectedColor(Colors.primary)
           .onChange((value: number) => {
             this.onSeek(value)
@@ -464,20 +515,26 @@ struct RoomDetailPage {
 
         Text(this.formatTime(this.duration))
           .fontSize(10)
-          .fontColor('rgba(255,255,255,0.7)')
+          .fontColor('rgba(255,255,255,0.9)')
       }
       .width('100%')
       .padding({ left: Spacing.md, right: Spacing.md, top: Spacing.sm, bottom: Spacing.sm })
 
       Row({ space: Spacing.xl }) {
-        Text(this.isPlaying ? '⏸' : '▶️')
-          .fontSize(24)
+        Image(this.isPlaying ? $r('app.media.icon_pause') : $r('app.media.icon_play'))
+          .width(28)
+          .height(28)
+          .objectFit(ImageFit.Contain)
+          .fillColor(Color.White)
           .onClick(() => {
             this.onPlayClick()
           })
 
-        Text('⏮')
-          .fontSize(20)
+        Image($r('app.media.icon_rewind'))
+          .width(22)
+          .height(22)
+          .objectFit(ImageFit.Contain)
+          .fillColor(Color.White)
           .onClick(() => {
             if (this.isHost) {
               const newPos = Math.max(0, this.currentPosition - 10)
@@ -485,8 +542,11 @@ struct RoomDetailPage {
             }
           })
 
-        Text('⏭')
-          .fontSize(20)
+        Image($r('app.media.icon_forward'))
+          .width(22)
+          .height(22)
+          .objectFit(ImageFit.Contain)
+          .fillColor(Color.White)
           .onClick(() => {
             if (this.isHost) {
               const newPos = Math.min(this.duration, this.currentPosition + 10)
@@ -496,11 +556,15 @@ struct RoomDetailPage {
 
         Blank()
 
-        Text(this.showDanmaku ? '弹' : '闭')
-          .fontSize(12)
-          .fontColor(Color.White)
+        Row() {
+          Image($r('app.media.icon_danmu'))
+            .width(16)
+            .height(16)
+            .objectFit(ImageFit.Contain)
+            .fillColor(this.showDanmaku ? Color.White : 'rgba(255,255,255,0.7)')
+        }
           .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-          .backgroundColor(this.showDanmaku ? Colors.primary : 'rgba(255,255,255,0.2)')
+          .backgroundColor(this.showDanmaku ? Colors.primary : 'rgba(255,255,255,0.15)')
           .borderRadius(4)
           .onClick(() => {
             this.showDanmaku = !this.showDanmaku
@@ -510,7 +574,7 @@ struct RoomDetailPage {
           .fontSize(12)
           .fontColor(Color.White)
           .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-          .backgroundColor('rgba(255,255,255,0.2)')
+          .backgroundColor('rgba(255,255,255,0.15)')
           .borderRadius(4)
           .onClick(() => {
             if (this.isHost) {
@@ -522,17 +586,23 @@ struct RoomDetailPage {
             }
           })
 
-        Text('🔊')
-          .fontSize(20)
+        Image($r('app.media.icon_mute'))
+          .width(20)
+          .height(20)
+          .objectFit(ImageFit.Contain)
+          .fillColor(Color.White)
 
-        Text('⛶')
-          .fontSize(20)
+        Image($r('app.media.icon_fullscreen'))
+          .width(20)
+          .height(20)
+          .objectFit(ImageFit.Contain)
+          .fillColor(Color.White)
       }
       .width('100%')
       .padding({ left: Spacing.lg, right: Spacing.lg, bottom: Spacing.md })
     }
     .width('100%')
-    .backgroundColor('rgba(0,0,0,0.5)')
+    .backgroundColor('rgba(30,30,40,0.92)')
   }
 
   @Builder
@@ -662,8 +732,10 @@ struct RoomDetailPage {
             ForEach(this.members, (member: MemberItem) => {
               ListItem() {
                 Row({ space: Spacing.md }) {
-                  Text(member.isHost ? '👑' : '👤')
-                    .fontSize(24)
+                  Image(member.isHost ? $r('app.media.badge_crown') : $r('app.media.icon_people'))
+                    .width(24)
+                    .height(24)
+                    .fillColor(member.isHost ? Colors.primary : Colors.textSecondary)
 
                   Column() {
                     Text(member.name)
@@ -720,13 +792,13 @@ struct RoomDetailPage {
           })
 
         Column({ space: 0 }) {
-          this.MenuItem('🔄', '刷新房间')
-          this.MenuItem('📋', '房间信息')
+          this.MenuItem($r('app.media.shuaxin'), '刷新房间')
+          this.MenuItem($r('app.media.feature_more'), '房间信息')
           if (this.isHost) {
-            this.MenuItem('🎬', '选择影片')
-            this.MenuItem('👑', '移交房主')
+            this.MenuItem($r('app.media.cat_movie'), '选择影片')
+            this.MenuItem($r('app.media.badge_crown'), '移交房主')
           }
-          this.MenuItem('🚪', '退出房间', Colors.error)
+          this.MenuItem($r('app.media.icon_arrow_left'), '退出房间', Colors.error)
         }
         .width(160)
         .backgroundColor(Color.White)
@@ -741,10 +813,12 @@ struct RoomDetailPage {
   }
 
   @Builder
-  MenuItem(icon: string, title: string, color?: string) {
+  MenuItem(icon: Resource, title: string, color?: string) {
     Row({ space: Spacing.md }) {
-      Text(icon)
-        .fontSize(16)
+      Image(icon)
+        .width(16)
+        .height(16)
+        .objectFit(ImageFit.Contain)
 
       Text(title)
         .fontSize(FontSizes.caption)
@@ -759,6 +833,8 @@ struct RoomDetailPage {
         this.showLeaveConfirm = true
       } else if (title === '选择影片') {
         this.showMoviePicker = true
+      } else if (title === '房间信息') {
+        this.showRoomInfo = true
       }
     })
   }
@@ -825,6 +901,108 @@ struct RoomDetailPage {
   }
 
   @Builder
+  RoomInfoDialog() {
+    Stack({ alignContent: Alignment.Center }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('rgba(0,0,0,0.5)')
+        .onClick(() => {
+          this.showRoomInfo = false
+        })
+
+      Column() {
+        Row() {
+          Text('房间信息')
+            .fontSize(FontSizes.sectionTitle)
+            .fontWeight(FontWeightValue.bold)
+            .fontColor(Colors.textPrimary)
+
+          Blank()
+
+          Image($r('app.media.feature_more'))
+            .width(20)
+            .height(20)
+            .objectFit(ImageFit.Contain)
+            .onClick(() => {
+              this.showRoomInfo = false
+            })
+        }
+        .width('100%')
+        .margin({ bottom: Spacing.xl })
+
+        Row() {
+          Column() {
+            QRCode(this.getQrContent())
+              .width(120)
+              .height(120)
+              .backgroundColor(Color.White)
+              .padding(8)
+              .borderRadius(12)
+
+            Text('房间二维码')
+              .fontSize(FontSizes.helper)
+              .fontColor(Colors.textSecondary)
+              .margin({ top: 8 })
+          }
+          .alignItems(HorizontalAlign.Center)
+
+          Column() {
+            Text('房间号')
+              .fontSize(FontSizes.helper)
+              .fontColor(Colors.textSecondary)
+              .margin({ bottom: 4 })
+
+            Text(this.roomCode)
+              .fontSize(24)
+              .fontWeight(FontWeightValue.bold)
+              .fontColor(Colors.textPrimary)
+              .letterSpacing(4)
+
+            Text('其他用户可通过房间号搜索加入')
+              .fontSize(FontSizes.helper)
+              .fontColor(Colors.textSecondary)
+              .margin({ top: 16 })
+
+            Text(`房间名称：${this.roomName}`)
+              .fontSize(FontSizes.caption)
+              .fontColor(Colors.textSecondary)
+              .margin({ top: 8 })
+
+            Text(`在线人数：${this.members.length}/${this.currentRoom?.maxMember || 8}`)
+              .fontSize(FontSizes.caption)
+              .fontColor(Colors.textSecondary)
+              .margin({ top: 4 })
+          }
+          .layoutWeight(1)
+          .padding({ left: Spacing.lg })
+          .alignItems(HorizontalAlign.Start)
+        }
+        .width('100%')
+        .padding({ bottom: Spacing.xl })
+        .border({ width: { bottom: 1 }, color: '#F0F0F0' })
+
+        Button('复制房间号')
+          .width('100%')
+          .height(44)
+          .fontSize(FontSizes.body)
+          .fontColor(Color.White)
+          .backgroundColor(Colors.primary)
+          .borderRadius(BorderRadius.medium)
+          .onClick(() => {
+            this.copyRoomCode()
+          })
+      }
+      .width('85%')
+      .padding(Spacing.xl)
+      .backgroundColor(Color.White)
+      .borderRadius(BorderRadius.large)
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
   MoviePickerDialog() {
     Stack({ alignContent: Alignment.Bottom }) {
       Column()
@@ -850,9 +1028,9 @@ struct RoomDetailPage {
           .margin({ bottom: Spacing.lg })
 
         Column() {
-          this.MovieOptionItem('🎬', 'Big Buck Bunny', '经典测试影片', this.TEST_VIDEO_URL)
-          this.MovieOptionItem('🎥', '示例影片2', '待添加', '')
-          this.MovieOptionItem('📺', '示例影片3', '待添加', '')
+          ForEach(this.availableMovies, (movie: Movie, index: number) => {
+            this.MovieOptionItem(index, movie)
+          }, (movie: Movie) => movie.id.toString())
         }
         .width('100%')
 
@@ -869,19 +1047,36 @@ struct RoomDetailPage {
     .height('100%')
   }
 
+  private selectMovie(index: number): void {
+    if (index >= 0 && index < this.availableMovies.length) {
+      this.currentMovieIndex = index
+      const movie = this.availableMovies[index]
+      if (movie.videoUrl) {
+        this.videoController.pause()
+        this.currentPosition = 0
+        this.isPlaying = false
+        hilog.info(0, TAG, `Selected movie: ${movie.title}, url: ${movie.videoUrl}`)
+      }
+    }
+    this.showMoviePicker = false
+  }
+
   @Builder
-  MovieOptionItem(icon: string, title: string, desc: string, url: string) {
+  MovieOptionItem(index: number, movie: Movie) {
     Row() {
-      Text(icon)
-        .fontSize(28)
+      Image(this.getPosterResource(movie.posterUrl))
+        .width(40)
+        .height(56)
+        .borderRadius(4)
+        .objectFit(ImageFit.Cover)
 
       Column() {
-        Text(title)
+        Text(movie.title)
           .fontSize(FontSizes.body)
           .fontWeight(FontWeightValue.medium)
           .fontColor(Colors.textPrimary)
 
-        Text(desc)
+        Text(movie.genre.join(' / '))
           .fontSize(FontSizes.helper)
           .fontColor(Colors.textSecondary)
           .margin({ top: 2 })
@@ -891,22 +1086,40 @@ struct RoomDetailPage {
 
       Blank()
 
-      Text('选择')
-        .fontSize(FontSizes.caption)
-        .fontColor(Colors.primary)
-        .padding({ left: Spacing.md, right: Spacing.md, top: 6, bottom: 6 })
+      Row() {
+        Text('✓')
+          .fontSize(12)
+          .fontColor(Color.White)
+          .fontWeight(FontWeightValue.bold)
+      }
+        .width(24)
+        .height(24)
+        .borderRadius(12)
+        .backgroundColor(this.currentMovieIndex === index ? Colors.primary : 'transparent')
         .border({ width: 1, color: Colors.primary })
-        .borderRadius(BorderRadius.small)
+        .justifyContent(FlexAlign.Center)
         .onClick(() => {
-          if (url) {
-            hilog.info(0, TAG, `Selected movie: ${title}`)
-            this.showMoviePicker = false
-          }
+          this.selectMovie(index)
         })
     }
     .width('100%')
     .padding({ top: Spacing.md, bottom: Spacing.md })
     .border({ width: { bottom: 1 }, color: '#F0F0F0' })
+  }
+
+  private getPosterResource(name: string): Resource | string {
+    if (name.startsWith('http')) return name
+    switch (name) {
+      case 'poster_fanhua': return $r('app.media.poster_fanhua')
+      case 'poster_qingyunian': return $r('app.media.poster_qingyunian')
+      case 'poster_aletai': return $r('app.media.poster_aletai')
+      case 'poster_feichi': return $r('app.media.poster_feichi')
+      case 'poster_zhongdiba': return $r('app.media.poster_zhongdiba')
+      case 'poster_bushanliang': return $r('app.media.poster_bushanliang')
+      case 'poster_langyabang': return $r('app.media.poster_langyabang')
+      case 'poster_kuangbiao': return $r('app.media.poster_kuangbiao')
+      default: return $r('app.media.startIcon')
+    }
   }
 }
 

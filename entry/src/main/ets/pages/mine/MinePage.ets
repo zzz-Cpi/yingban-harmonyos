@@ -24,7 +24,7 @@ struct MinePage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#FFF5F8') // 粉蓝柔和背景色
+    .backgroundColor(Colors.background) // 粉蓝柔和背景色
   }
 
   // UserInfo - 全屏粉蓝渐变磨砂毛玻璃容器优化
@@ -256,7 +256,7 @@ struct MinePage {
       .shadow({ radius: 6, color: 'rgba(255,182,193,0.08)', offsetX: 0, offsetY: 2 })
       .justifyContent(FlexAlign.Center)
       .onClick(() => {
-        promptAction.showToast({ message: '观影笔记开发中' })
+        router.pushUrl({ url: 'pages/mine/NotesPage' })
       })
 
       Column() {
@@ -290,7 +290,7 @@ struct MinePage {
       .shadow({ radius: 6, color: 'rgba(176,224,230,0.08)', offsetX: 0, offsetY: 2 })
       .justifyContent(FlexAlign.Center)
       .onClick(() => {
-        promptAction.showToast({ message: '观影统计开发中' })
+        router.pushUrl({ url: 'pages/mine/StatisticPage' })
       })
 
       Column() {
@@ -324,7 +324,7 @@ struct MinePage {
       .shadow({ radius: 6, color: 'rgba(255,182,193,0.08)', offsetX: 0, offsetY: 2 })
       .justifyContent(FlexAlign.Center)
       .onClick(() => {
-        promptAction.showToast({ message: '我的收藏开发中' })
+        router.pushUrl({ url: 'pages/mine/FavoritePage' })
       })
 
       Column() {
@@ -491,7 +491,7 @@ struct MinePage {
             .margin({ left: 4 })
         }
         .onClick(() => {
-          promptAction.showToast({ message: '全部笔记开发中' })
+          router.pushUrl({ url: 'pages/mine/NotesPage' })
         })
       }
       .width('100%')

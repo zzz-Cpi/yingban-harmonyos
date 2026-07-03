@@ -1,5 +1,6 @@
 {
   "src": [
+    "pages/LoginPage",
     "pages/Index",
     "pages/theater/RoomDetailPage",
     "pages/theater/ScanQrCodePage",
@@ -10,6 +11,9 @@
     "pages/mine/AchievementPage",
     "pages/mine/MessagePage",
     "pages/mine/SettingPage",
-    "pages/mine/HistoryPage"
+    "pages/mine/HistoryPage",
+    "pages/mine/FavoritePage",
+    "pages/mine/NotesPage",
+    "pages/mine/StatisticPage"
   ]
 }

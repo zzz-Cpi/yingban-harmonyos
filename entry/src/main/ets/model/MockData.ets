@@ -445,6 +445,12 @@ function getMockNotes(): Note[] {
   list.push(createNote(2, 2, '狂飙', 1, 320,
     '安欣第一次出场，这个眼神绝了', ['伏笔'],
     Date.now() - 24 * 60 * 60 * 1000))
+  list.push(createNote(3, 3, '庆余年 第二季', 15, 960,
+    '范闲朝堂对峙，气场全开，演技炸裂！', ['高能场面', '演技'],
+    Date.now() - 3 * 60 * 60 * 1000))
+  list.push(createNote(4, 5, '我的阿勒泰', 8, 480,
+    '李文秀在草原上奔跑，自由又治愈。', ['治愈', '风景'],
+    Date.now() - 5 * 60 * 60 * 1000))
   return list
 }
 

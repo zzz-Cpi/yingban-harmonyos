@@ -1,4 +1,5 @@
 // 主入口页面 - 包含底部Tab导航
+import { Colors } from '../utils/Constants'
 import HomePage from './home/HomePage'
 import DramaPage from './drama/DramaPage'
 import TheaterPage from './theater/TheaterPage'
@@ -60,10 +61,10 @@ struct Index {
       }
       .width('100%')
       .height(56)
-      .backgroundColor(Color.White)
+      .backgroundColor(Colors.background)
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F0F2F5')
+    .backgroundColor(Colors.background)
   }
 }

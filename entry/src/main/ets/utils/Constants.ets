@@ -1,16 +1,16 @@
 // 应用常量定义
 
-// 颜色常量
+// 颜色常量 - 粉蓝梦幻柔和主题
 export class Colors {
-  static readonly primary: string = '#FF6B6B'
-  static readonly secondary: string = '#4ECDC4'
+  static readonly primary: string = '#F992A5'
+  static readonly secondary: string = '#A0C8D8'
   static readonly accent: string = '#FFE66D'
 
-  static readonly background: string = '#F0F2F5'
-  static readonly cardBackground: string = '#FFFFFF'
+  static readonly background: string = '#FFFAF5'
+  static readonly cardBackground: string = 'rgba(255,240,245,0.72)'
   static readonly darkBackground: string = '#1A1A1A'
 
-  static readonly textPrimary: string = '#1D1D1F'
+  static readonly textPrimary: string = '#2D2D3A'
   static readonly textSecondary: string = '#8E8E93'
   static readonly textTertiary: string = '#AEAEB2'
 

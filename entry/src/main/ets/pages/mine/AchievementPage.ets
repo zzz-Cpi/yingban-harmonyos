@@ -36,7 +36,7 @@ struct AchievementPage {
       .width('100%')
       .height(56)
       .padding({ left: Spacing.lg, right: Spacing.lg })
-      .backgroundColor(Color.White)
+      .backgroundColor(Colors.background)
 
       Divider().color('#EEEEEE')
 
@@ -73,7 +73,7 @@ struct AchievementPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(Color.White)
+    .backgroundColor(Colors.background)
   }
 
   @Builder

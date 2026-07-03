@@ -138,7 +138,7 @@ struct LibraryPage {
       }
       .width('100%')
       .padding({ left: Spacing.lg, right: Spacing.lg, top: 12, bottom: 12 })
-      .backgroundColor(Color.White)
+      .backgroundColor(Colors.background)
 
       // 分类Tab
       Scroll() {
@@ -190,7 +190,7 @@ struct LibraryPage {
       }
       .scrollable(ScrollDirection.Horizontal)
       .scrollBar(BarState.Off)
-      .backgroundColor(Color.White)
+      .backgroundColor(Colors.background)
       .padding({ bottom: Spacing.sm })
 
       // 结果数量
@@ -260,6 +260,6 @@ struct LibraryPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F8F9FA')
+    .backgroundColor(Colors.background)
   }
 }
