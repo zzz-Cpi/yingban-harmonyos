@@ -156,7 +156,7 @@ export class TMDBService {
     return JSON.parse(result) as TMDBVideosResponse
   }
 
-  // 获取预告片URL（优先官方YouTube预告片）
+  // 获取预告片URL（优先官方YouTube预告片，解析为直链）
   async getTrailerUrl(mediaId: number, mediaType: string): Promise<string> {
     let videosRes: TMDBVideosResponse
     if (mediaType === 'movie') {
@@ -203,7 +203,51 @@ export class TMDBService {
       throw new Error('没有找到可用的预告片')
     }
 
-    return `https://www.youtube.com/watch?v=${bestVideo.key}`
+    return await this.resolveYouTubeUrl(bestVideo.key)
+  }
+
+  // 解析YouTube视频为直链
+  private async resolveYouTubeUrl(youtubeKey: string): Promise<string> {
+    const apiUrl: string = `https://yt.lemnoslife.com/videos?part=streamingData&id=${youtubeKey}`
+    
+    try {
+      const response: http.HttpResponse = await this.httpRequest.request(apiUrl, {
+        method: http.RequestMethod.GET,
+        header: {
+          'Accept': 'application/json'
+        },
+        connectTimeout: TIMEOUT,
+        readTimeout: TIMEOUT
+      })
+
+      if (response.responseCode === 200 && response.result) {
+        const data: any = JSON.parse(response.result as string)
+        if (data.items && data.items.length > 0) {
+          const streamingData = data.items[0].streamingData
+          if (streamingData) {
+            if (streamingData.formats && streamingData.formats.length > 0) {
+              for (const format of streamingData.formats) {
+                if (format.mimeType && format.mimeType.includes('video/mp4') && format.url) {
+                  return format.url
+                }
+              }
+              return streamingData.formats[0].url
+            } else if (streamingData.adaptiveFormats && streamingData.adaptiveFormats.length > 0) {
+              for (const format of streamingData.adaptiveFormats) {
+                if (format.mimeType && format.mimeType.includes('video/mp4') && format.url) {
+                  return format.url
+                }
+              }
+              return streamingData.adaptiveFormats[0].url
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('YouTube解析失败，使用备用链接')
+    }
+
+    throw new Error('无法解析YouTube视频')
   }
 
   // ==================== 搜索 ====================

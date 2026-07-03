@@ -103,7 +103,7 @@ struct HomePage {
       const popularRes: TMDBListResponse = await this.tmdbService.getPopularMovies(1)
       const tvRes: TMDBListResponse = await this.tmdbService.getOnTheAirTv(1)
 
-      this.nowPlaying = nowPlayingRes.results.slice(0, 6)
+      this.nowPlaying = nowPlayingRes.results
       this.trending = trendingRes.results.slice(0, 8)
       this.popularMovies = popularRes.results.slice(0, 8)
       this.onAirTv = tvRes.results.slice(0, 8)

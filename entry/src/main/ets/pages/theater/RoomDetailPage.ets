@@ -321,6 +321,9 @@ struct RoomDetailPage {
         Text('‹')
           .fontSize(24)
           .fontColor(Color.White)
+          .width(40)
+          .height(40)
+          .textAlign(TextAlign.Center)
           .onClick(() => {
             this.onBackClick()
           })

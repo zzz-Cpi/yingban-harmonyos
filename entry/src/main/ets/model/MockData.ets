@@ -543,26 +543,26 @@ function createMockTMDBMedia(
   return m
 }
 
-const TRAILER_FANHUA: Resource = $rawfile('trailer_01.mp4')
-const TRAILER_QINGYUNIAN: Resource = $rawfile('trailer_02.mp4')
-const TRAILER_ALETAI: Resource = $rawfile('trailer_03.mp4')
-const TRAILER_FEICHI: Resource = $rawfile('trailer_04.mp4')
-const TRAILER_ZHONGDIBA: Resource = $rawfile('trailer_01.mp4')
-const TRAILER_BUSHANLIANG: Resource = $rawfile('trailer_02.mp4')
-const TRAILER_MANCHANG: Resource = $rawfile('trailer_03.mp4')
-const TRAILER_WAIPO: Resource = $rawfile('trailer_04.mp4')
-const TRAILER_TAOCHU: Resource = $rawfile('trailer_01.mp4')
-const TRAILER_MEIGUI: Resource = $rawfile('trailer_02.mp4')
-const TRAILER_JINYONG: Resource = $rawfile('trailer_03.mp4')
-const TRAILER_MOYU: Resource = $rawfile('trailer_04.mp4')
-const TRAILER_DUHUANIAN: Resource = $rawfile('trailer_01.mp4')
-const TRAILER_RELAGUTANG: Resource = $rawfile('trailer_02.mp4')
-const TRAILER_DIERSHOUTIAO: Resource = $rawfile('trailer_03.mp4')
-const TRAILER_YIQIYAO: Resource = $rawfile('trailer_04.mp4')
-const TRAILER_XIONGCHUMO: Resource = $rawfile('trailer_01.mp4')
-const TRAILER_HONGTAN: Resource = $rawfile('trailer_02.mp4')
-const TRAILER_DAHONGBAO: Resource = $rawfile('trailer_03.mp4')
-const TRAILER_SAOHEI: Resource = $rawfile('trailer_04.mp4')
+const TRAILER_FANHUA: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+const TRAILER_QINGYUNIAN: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4'
+const TRAILER_ALETAI: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4'
+const TRAILER_FEICHI: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+const TRAILER_ZHONGDIBA: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4'
+const TRAILER_BUSHANLIANG: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4'
+const TRAILER_MANCHANG: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4'
+const TRAILER_WAIPO: string = 'https://www.w3schools.com/html/mov_bbb.mp4'
+const TRAILER_TAOCHU: string = 'https://www.w3schools.com/html/movie.mp4'
+const TRAILER_MEIGUI: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+const TRAILER_JINYONG: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4'
+const TRAILER_MOYU: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4'
+const TRAILER_DUHUANIAN: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+const TRAILER_RELAGUTANG: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4'
+const TRAILER_DIERSHOUTIAO: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4'
+const TRAILER_YIQIYAO: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4'
+const TRAILER_XIONGCHUMO: string = 'https://www.w3schools.com/html/mov_bbb.mp4'
+const TRAILER_HONGTAN: string = 'https://www.w3schools.com/html/movie.mp4'
+const TRAILER_DAHONGBAO: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+const TRAILER_SAOHEI: string = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4'
 
 function getMockNowPlaying(): TMDBListResponse {
   const list: TMDBMedia[] = []

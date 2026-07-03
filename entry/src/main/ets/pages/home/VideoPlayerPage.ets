@@ -399,6 +399,12 @@ struct VideoPlayerPage {
               Text('←')
                 .fontSize(18)
                 .fontColor(Color.White)
+                .width('100%')
+                .height('100%')
+                .textAlign(TextAlign.Center)
+                .onClick(() => {
+                  this.onBack()
+                })
             }
             .width(36)
             .height(36)
@@ -406,9 +412,6 @@ struct VideoPlayerPage {
             .backdropBlur(10)
             .borderRadius(18)
             .justifyContent(FlexAlign.Center)
-            .onClick(() => {
-              this.onBack()
-            })
 
             Text(this.title)
               .fontSize(FontSizes.body)
