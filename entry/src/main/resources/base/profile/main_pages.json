@@ -5,6 +5,11 @@
     "pages/theater/ScanQrCodePage",
     "pages/home/VideoPlayerPage",
     "pages/home/SearchPage",
-    "pages/home/LibraryPage"
+    "pages/home/LibraryPage",
+    "pages/mine/DownloadPage",
+    "pages/mine/AchievementPage",
+    "pages/mine/MessagePage",
+    "pages/mine/SettingPage",
+    "pages/mine/HistoryPage"
   ]
 }

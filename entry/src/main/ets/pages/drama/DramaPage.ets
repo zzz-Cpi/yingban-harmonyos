@@ -1,4 +1,4 @@
-// 追剧页 - 多平台追剧管理
+// 追剧页 - 多平台追剧管理（粉蓝磨砂柔和风格优化版）
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../../utils/Constants'
 import { mockDramas, mockPlaylists, Drama, Playlist, createPlaylist } from '../../model/MockData'
 import { VideoWebPage } from './VideoWebPage'
@@ -49,81 +49,103 @@ struct DramaPage {
 
   build() {
     Navigation(this.pathStack) {
-      Column() {
-        // 顶部状态切换栏
-        this.StatusTabBar()
+      Stack() {
+        // 粉蓝梦幻背景层
+        Column()
+          .width('100%')
+          .height(200)
+          .linearGradient({
+            direction: GradientDirection.Bottom,
+            colors: [
+              [0x15FFB6C1, 0],
+              [0x25FFC0CB, 0.5],
+              [0x15E0F0F5, 1]
+            ]
+          })
 
-        // 片单筛选横栏（横向滚动正常保留）
-        this.PlaylistBar()
+        Column() {
+          // 顶部状态切换栏
+          this.StatusTabBar()
 
-        // 追剧卡片网格滚动区
-        this.DramaGrid()
+          // 片单筛选横栏（横向滚动正常保留）
+          this.PlaylistBar()
 
-        // 根据是否为管理模式，切换底部按钮
-        if (this.isManageMode) {
-          this.DeleteBottomBar()
-        } else {
-          this.AddButton()
+          // 追剧卡片网格滚动区
+          this.DramaGrid()
+
+          // 根据是否为管理模式,切换底部按钮
+          if (this.isManageMode) {
+            this.DeleteBottomBar()
+          } else {
+            this.AddButton()
+          }
+
+          // 弹窗局部渲染，不拦截底层触摸
+          this.CreatePlaylistDialog()
         }
-
-        // 弹窗局部渲染，不拦截底层触摸
-        this.CreatePlaylistDialog()
+        .width('100%')
+        .height('100%')
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(Colors.background)
+      .backgroundColor('#FFF5F8')
     }
     .navDestination(this.PageMap)
     .hideTitleBar(true)
   }
 
+  // 顶部状态切换栏 - 磨砂毛玻璃柔和风格
   @Builder
   StatusTabBar() {
     Column() {
       Row() {
-        Row() {
+        Row({ space: 28 }) {
           ForEach(this.statusTabs, (tab: string, index: number) => {
-            Column() {
+            Column({ space: 6 }) {
               Text(tab)
-                .fontSize(FontSizes.body)
-                .fontColor(this.currentTab === index ? Colors.primary : Colors.textSecondary)
-                .fontWeight(this.currentTab === index ? FontWeightValue.semibold : FontWeightValue.regular)
+                .fontSize(this.currentTab === index ? 20 : 16)
+                .fontColor(this.currentTab === index ? '#2D2D3A' : '#9A9AA3')
+                .fontWeight(this.currentTab === index ? FontWeightValue.bold : FontWeightValue.medium)
 
-              if (this.currentTab === index) {
-                Row()
-                  .width(24)
-                  .height(3)
-                  .backgroundColor(Colors.primary)
-                  .borderRadius(2)
-                  .margin({ top: 4 })
-              }
+              // 粉蓝渐变指示条
+              Row()
+                .width(20)
+                .height(3)
+                .linearGradient({
+                  direction: GradientDirection.Right,
+                  colors: [['#FFB6C1', 0], ['#B0E0E6', 1]]
+                })
+                .borderRadius(2)
+                .opacity(this.currentTab === index ? 1 : 0)
             }
-            .width(60)
             .onClick(() => {
-              if (this.isManageMode) return // 管理模式下禁用切换 Tab
+              if (this.isManageMode) return
               this.currentTab = index
             })
           })
         }
         .layoutWeight(1)
 
-        // ========== 修改：将“共X部”改为“管理/完成”按钮 ==========
+        // 管理按钮 - 磨砂柔和
         Text(this.isManageMode ? '完成' : '管理')
-          .fontSize(FontSizes.body)
-          .fontColor(this.isManageMode ? Colors.primary : Colors.textSecondary)
-          .padding({ left: 10, top: 4, bottom: 4 }) // 增加点击热区
+          .fontSize(FontSizes.caption)
+          .fontColor(this.isManageMode ? '#FFB6C1' : '#9A9AA3')
+          .padding({ left: 12, top: 6, bottom: 6, right: 12 })
+          .backgroundColor(this.isManageMode ? 'rgba(255,182,193,0.15)' : 'rgba(255,240,245,0.5)')
+          .backdropBlur(10)
+          .borderRadius(12)
           .onClick(() => {
             this.isManageMode = !this.isManageMode
-            // 退出管理模式时，清空选中状态
             if (!this.isManageMode) {
               this.selectedDramas = []
             }
           })
       }
       .width('100%')
-      .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.md })
-      .backgroundColor(Color.White)
+      .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.sm })
     }
+    .backgroundColor('rgba(255,240,245,0.6)')
+    .backdropBlur(20)
   }
 
   @Builder
@@ -131,36 +153,46 @@ struct DramaPage {
     Column() {
       Scroll() {
         Row({ space: Spacing.md }) {
-          // ========== 【全部】特殊标签 ==========
+          // ========== 【全部】特殊标签 - 粉蓝柔和磨砂优化 ==========
           Row() {
             Text('全部')
               .fontSize(FontSizes.caption)
-              .fontColor(this.currentPlaylist === 1 ? Colors.primary : Colors.textSecondary)
+              .fontColor(this.currentPlaylist === 1 ? Color.White : '#2D2D3A')
 
-            // 统计全部剧集总数 (修复了原代码未传 statusKey 的问题)
+            // 统计全部剧集总数
             if (!this.isManageMode) {
               Text(this.getPlaylistTotal(0, this.getCurrentStatusKey()).toString())
                 .fontSize(10)
                 .fontColor(Color.White)
-                .backgroundColor(this.currentPlaylist === 1 ? Colors.primary : Colors.textTertiary)
+                .backgroundColor(this.currentPlaylist === 1 ? 'rgba(255,255,255,0.3)' : 'rgba(176,224,230,0.5)')
                 .borderRadius(10)
                 .padding({ left: 6, right: 6, top: 1, bottom: 1 })
                 .margin({ left: 4 })
             }
           }
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-          .backgroundColor(this.currentPlaylist === 1 ? '#FFF0F0' : '#F5F5F5')
-          .borderRadius(BorderRadius.small)
+          // 粉蓝磨砂半透明效果
+          .backgroundColor(this.currentPlaylist === 1 ? 'rgba(0,0,0,0.01)' : 'rgba(255,240,245,0.6)')
+          .backdropBlur(15)
+          .borderRadius(14)
+          .border({ width: 1, color: this.currentPlaylist === 1 ? 'rgba(255,182,193,0.5)' : 'rgba(176,224,230,0.3)' })
+          .linearGradient(this.currentPlaylist === 1 ? {
+            direction: GradientDirection.Right,
+            colors: [[0x80FFB6C1, 0], [0x80B0E0E6, 1]]
+          } : {
+            direction: GradientDirection.Right,
+            colors: [[0x15FFB6C1, 0], [0x15B0E0E6, 1]]
+          })
           .onClick(() => {
             if (!this.isManageMode) this.currentPlaylist = 1
           })
 
-          // ========== 自定义片单循环渲染 ==========
+          // ========== 自定义片单循环渲染（粉蓝磨砂优化）==========
           ForEach(mockPlaylists, (playlist: Playlist) => {
             Row() {
               Text(playlist.name)
                 .fontSize(FontSizes.caption)
-                .fontColor(this.currentPlaylist === playlist.id ? Colors.primary : Colors.textSecondary)
+                .fontColor(this.currentPlaylist === playlist.id ? Color.White : '#2D2D3A')
 
               // ========== 修改：管理模式下显示删除小叉，非管理模式显示数量 ==========
               if (this.isManageMode) {
@@ -168,7 +200,7 @@ struct DramaPage {
                   .fontSize(12)
                   .fontWeight(FontWeightValue.bold)
                   .fontColor(Color.White)
-                  .backgroundColor('#FF4D4F') // 红色删除按钮
+                  .backgroundColor('#FF6B9D') // 柔和粉红色删除按钮
                   .borderRadius(10)
                   .width(16)
                   .height(16)
@@ -179,7 +211,7 @@ struct DramaPage {
                     const index = mockPlaylists.findIndex((p: Playlist) => p.id === playlist.id)
                     if (index > -1) {
                       mockPlaylists.splice(index, 1)
-                      // 如果删除的是当前选中的片单，回退到“全部”
+                      // 如果删除的是当前选中的片单，回退到"全部"
                       if (this.currentPlaylist === playlist.id) {
                         this.currentPlaylist = 1
                       }
@@ -190,35 +222,50 @@ struct DramaPage {
                 Text(this.getPlaylistTotal(playlist.id, this.getCurrentStatusKey()).toString())
                   .fontSize(10)
                   .fontColor(Color.White)
-                  .backgroundColor(this.currentPlaylist === playlist.id ? Colors.primary : Colors.textTertiary)
+                  .backgroundColor(this.currentPlaylist === playlist.id ? 'rgba(255,255,255,0.3)' : 'rgba(176,224,230,0.5)')
                   .borderRadius(10)
                   .padding({ left: 6, right: 6, top: 1, bottom: 1 })
                   .margin({ left: 4 })
               }
             }
             .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-            .backgroundColor(this.currentPlaylist === playlist.id ? '#FFF0F0' : '#F5F5F5')
+            // 粉蓝磨砂半透明效果
+            .backgroundColor(this.currentPlaylist === playlist.id ? 'rgba(0,0,0,0.01)' : 'rgba(255,240,245,0.6)')
+            .backdropBlur(10)
             .borderRadius(BorderRadius.small)
+            .border({
+              width: 1,
+              color: this.currentPlaylist === playlist.id ? 'rgba(255,182,193,0.5)' : 'rgba(176,224,230,0.3)'
+            })
+            .linearGradient(this.currentPlaylist === playlist.id ? {
+              direction: GradientDirection.Right,
+              colors: [[0x80FFB6C1, 0], [0x80B0E0E6, 1]]
+            } : {
+              direction: GradientDirection.Right,
+              colors: [[0x15FFB6C1, 0], [0x15B0E0E6, 1]]
+            })
             .onClick(() => {
               if (!this.isManageMode) this.currentPlaylist = playlist.id
             })
           }, (item: Playlist) => item.id.toString() + this.playlistRefreshKey.toString())
 
-          // 新建片单按钮 (管理模式下隐藏)
+          // 新建片单按钮（粉蓝磨砂优化，管理模式下隐藏）
           if (!this.isManageMode) {
             Row() {
               Text('+')
                 .fontSize(FontSizes.body)
-                .fontColor(Colors.textSecondary)
+                .fontColor('#2D2D3A')
 
               Text('新建')
                 .fontSize(FontSizes.caption)
-                .fontColor(Colors.textSecondary)
+                .fontColor('#2D2D3A')
                 .margin({ left: 2 })
             }
             .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+            .backgroundColor('rgba(255,240,245,0.6)')
+            .backdropBlur(10)
             .borderRadius(BorderRadius.small)
-            .border({ width: 1, color: Colors.textTertiary, style: BorderStyle.Dashed })
+            .border({ width: 1, color: 'rgba(176,224,230,0.5)', style: BorderStyle.Dashed })
             .onClick(() => {
               this.inputPlaylistName = ''
               this.showCreatePlaylistDialog = true
@@ -231,7 +278,8 @@ struct DramaPage {
     }
     .width('100%')
     .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.md })
-    .backgroundColor(Color.White)
+    .backgroundColor('rgba(255,255,255,0.6)') // 粉蓝磨砂背景优化
+    .backdropBlur(15)
   }
 
   private getPlaylistTotal(targetId: number, statusKey: string): number {
@@ -300,6 +348,7 @@ struct DramaPage {
     }
   }
 
+  // DramaCard - 磨砂半透明柔和卡片优化
   @Builder
   DramaCard(drama: Drama) {
     Column() {
@@ -310,15 +359,15 @@ struct DramaPage {
           .height(160)
           // 【修改点】：只保留顶部两个圆角，底部直角，这样能完美贴合卡片边缘
           .borderRadius({
-            topLeft: BorderRadius.large,
-            topRight: BorderRadius.large,
+            topLeft: 20, // 粉蓝大圆角优化
+            topRight: 20,
             bottomLeft: 0,
             bottomRight: 0
           })
           .objectFit(ImageFit.Cover)
-          // 【附加优化】：如果海报太长被截断，加这行能让画面从“顶部”开始裁剪，防止人物切头
+          // 【附加优化】：如果海报太长被截断，加这行能让画面从"顶部"开始裁剪，防止人物切头
           .align(Alignment.Top)
-          .backgroundColor('#E0E0E0')
+          .backgroundColor('#E8E8F0')
 
         if (this.isManageMode) {
           Row() {
@@ -334,7 +383,7 @@ struct DramaPage {
           .margin(8) // 稍微加大一点 margin，因为现在紧贴边缘了
           .borderRadius(11)
           .border({ width: 1.5, color: Color.White })
-          .backgroundColor(this.selectedDramas.includes(drama) ? Colors.primary : 'rgba(0,0,0,0.3)')
+          .backgroundColor(this.selectedDramas.includes(drama) ? '#FFB6C1' : 'rgba(176,224,230,0.5)') // 粉蓝柔和选中态
           .justifyContent(FlexAlign.Center)
         } else {
           Text(this.getStatusText(drama.status))
@@ -342,7 +391,7 @@ struct DramaPage {
             .fontColor(Color.White)
             .backgroundColor(this.getStatusColor(drama.status))
             .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-            .borderRadius({ topRight: BorderRadius.large, bottomLeft: BorderRadius.small })
+            .borderRadius({ topRight: 20, bottomLeft: 8 }) // 粉蓝圆角优化
         }
       }
 
@@ -350,7 +399,7 @@ struct DramaPage {
       Column() {
         Text(drama.movie.title)
           .fontSize(FontSizes.caption)
-          .fontColor(Colors.textPrimary)
+          .fontColor('#2D2D3A')
           .margin({ top: Spacing.sm })
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -359,7 +408,7 @@ struct DramaPage {
           ForEach(drama.movie.platform.slice(0, 2), (p: string) => {
             Text(p)
               .fontSize(10)
-              .fontColor(Colors.textSecondary)
+              .fontColor('#9A9AA3')
           })
         }
         .margin({ top: 2 })
@@ -370,7 +419,7 @@ struct DramaPage {
             Row() {
               Text('更新至' + drama.currentEpisode + '/' + drama.totalEpisodes + '集')
                 .fontSize(FontSizes.helper)
-                .fontColor(Colors.textSecondary)
+                .fontColor('#9A9AA3')
             }
             .width('100%')
             .margin({ bottom: 4 })
@@ -379,13 +428,16 @@ struct DramaPage {
               Row()
                 .width('100%')
                 .height(4)
-                .backgroundColor('#E0E0E0')
+                .backgroundColor('rgba(176,224,230,0.3)') // 浅青蓝进度条底色
                 .borderRadius(2)
 
               Row()
                 .width(drama.watchProgress + '%')
                 .height(4)
-                .backgroundColor(Colors.primary)
+                .linearGradient({ // 粉蓝渐变进度条
+                  direction: GradientDirection.Right,
+                  colors: [['#FFB6C1', 0], ['#B0E0E6', 1]]
+                })
                 .borderRadius(2)
             }
             .alignContent(Alignment.Start) // 确保进度条从左边开始
@@ -399,8 +451,12 @@ struct DramaPage {
       .padding({ left: Spacing.sm, right: Spacing.sm, bottom: Spacing.sm }) // 【修改点】：把外层的边距移到这里，保护文字
     }
     .width('100%')
-    .backgroundColor(Color.White)
-    .borderRadius(BorderRadius.large)
+    // 磨砂半透明卡片背景 + 柔和阴影
+    .backgroundColor('rgba(255,255,255,0.75)')
+    .backdropBlur(20)
+    .borderRadius(20) // 粉蓝大圆角优化
+    .border({ width: 1, color: 'rgba(255,182,193,0.15)' }) // 柔和粉蓝边框
+    .shadow({ radius: 8, color: 'rgba(255,182,193,0.1)', offsetX: 0, offsetY: 2 }) // 极淡柔和阴影
     // .padding(Spacing.sm) <--- 【修改点】：删掉了这里的全局 padding，让图片能碰到边缘
     .onClick(() => {
       if (this.isManageMode) {
@@ -416,6 +472,7 @@ struct DramaPage {
     })
   }
 
+  // AddButton - 粉蓝渐变圆形磨砂按钮优化
   @Builder
   AddButton() {
     Column() {
@@ -424,8 +481,14 @@ struct DramaPage {
         .height(56)
         .fontSize(28)
         .fontColor(Color.White)
-        .backgroundColor(Colors.primary)
+        .linearGradient({ // 粉蓝渐变填充
+          direction: GradientDirection.Right,
+          colors: [['#FFB6C1', 0], ['#B0E0E6', 1]]
+        })
         .borderRadius(28)
+        .backdropBlur(15) // 磨砂效果
+        .border({ width: 1, color: 'rgba(255,182,193,0.3)' })
+        .shadow({ radius: 10, color: 'rgba(255,182,193,0.2)', offsetX: 0, offsetY: 4 }) // 柔和阴影
         .onClick(() => {
           try {
             router.pushUrl({ url: 'pages/home/SearchPage' })
@@ -437,7 +500,7 @@ struct DramaPage {
     .position({ x: '85%', y: '80%' })
   }
 
-  // ========== 新增：底部的删除操作栏 ==========
+  // ========== 新增：底部的删除操作栏（粉蓝柔和优化）==========
   @Builder
   DeleteBottomBar() {
     Row() {
@@ -445,9 +508,11 @@ struct DramaPage {
         .width('100%')
         .height(44)
         .fontSize(FontSizes.body)
-        .backgroundColor(this.selectedDramas.length > 0 ? '#FF4D4F' : '#FFAAAB') // 选中时变亮红色，未选中暗红色
+        .backgroundColor(this.selectedDramas.length > 0 ? '#FF6B9D' : '#FFAAAB') // 柔和粉红色
         .fontColor(Color.White)
-        .borderRadius(BorderRadius.large)
+        .borderRadius(20) // 粉蓝大圆角
+        .backdropBlur(15)
+        .border({ width: 1, color: 'rgba(255,182,193,0.3)' })
         .enabled(this.selectedDramas.length > 0)
         .onClick(() => {
           if (this.selectedDramas.length === 0) return
@@ -468,10 +533,12 @@ struct DramaPage {
     }
     .width('100%')
     .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.sm, bottom: Spacing.lg })
-    .backgroundColor(Color.White)
-    .border({ width: { top: 1 }, color: '#EEEEEE' })
+    .backgroundColor('rgba(255,255,255,0.6)') // 磨砂半透明背景
+    .backdropBlur(20)
+    .border({ width: { top: 1 }, color: 'rgba(255,182,193,0.2)' })
   }
 
+  // CreatePlaylistDialog - 粉蓝磨砂弹窗优化
   @Builder
   CreatePlaylistDialog() {
     if (this.showCreatePlaylistDialog) {
@@ -479,21 +546,23 @@ struct DramaPage {
         Row()
           .width('100%')
           .height('100%')
-          .backgroundColor('rgba(0,0,0,0.4)')
+          .backgroundColor('rgba(255,182,193,0.2)') // 柔和粉色半透明遮罩
           .onClick(() => this.showCreatePlaylistDialog = false)
 
         Column() {
           Text('新建片单')
             .fontSize(FontSizes.pageTitle)
             .fontWeight(FontWeightValue.semibold)
-            .fontColor(Colors.textPrimary)
+            .fontColor('#2D2D3A')
             .margin({ bottom: Spacing.lg })
 
           TextInput({ text: this.inputPlaylistName, placeholder: '请输入片单名称' })
             .width('100%')
             .height(44)
-            .backgroundColor('#F5F5F5')
-            .borderRadius(BorderRadius.small)
+            .backgroundColor('rgba(255,240,245,0.6)') // 粉蓝磨砂输入框
+            .backdropBlur(10)
+            .borderRadius(14)
+            .border({ width: 1, color: 'rgba(255,182,193,0.3)' })
             .padding({ left: Spacing.md, right: Spacing.md })
             .onChange((val: string) => this.inputPlaylistName = val)
             .margin({ bottom: Spacing.xl })
@@ -502,17 +571,22 @@ struct DramaPage {
             Button('取消')
               .layoutWeight(1)
               .height(44)
-              .fontColor(Colors.textSecondary)
-              .backgroundColor('#F5F5F5')
-              .borderRadius(BorderRadius.small)
+              .fontColor('#9A9AA3')
+              .backgroundColor('rgba(255,240,245,0.6)') // 粉蓝磨砂取消按钮
+              .backdropBlur(10)
+              .borderRadius(14)
+              .border({ width: 1, color: 'rgba(176,224,230,0.3)' })
               .onClick(() => this.showCreatePlaylistDialog = false)
 
             Button('确认创建')
               .layoutWeight(1)
               .height(44)
               .fontColor(Color.White)
-              .backgroundColor(Colors.primary)
-              .borderRadius(BorderRadius.small)
+              .linearGradient({ // 粉蓝渐变确认按钮
+                direction: GradientDirection.Right,
+                colors: [['#FFB6C1', 0], ['#B0E0E6', 1]]
+              })
+              .borderRadius(14)
               .onClick(() => {
                 const name = this.inputPlaylistName.trim()
                 if (name.length === 0) return
@@ -527,8 +601,11 @@ struct DramaPage {
         }
         .width('85%')
         .padding(Spacing.xl)
-        .backgroundColor(Color.White)
-        .borderRadius(BorderRadius.large)
+        .backgroundColor('rgba(255,255,255,0.85)') // 磨砂半透明弹窗背景
+        .backdropBlur(25)
+        .borderRadius(20) // 粉蓝大圆角
+        .border({ width: 1, color: 'rgba(255,182,193,0.2)' })
+        .shadow({ radius: 15, color: 'rgba(255,182,193,0.15)', offsetX: 0, offsetY: 5 }) // 柔和阴影
       }
       .width('100%')
       .height('100%')
@@ -539,8 +616,24 @@ struct DramaPage {
   private onDramaClick(drama: Drama): void {
     try {
       const title: string = drama.movie.title
-      const encodedTitle: string = encodeURIComponent(title)
-      const url: string = `https://v.qq.com/x/search/?q=${encodedTitle}`
+      let url: string = ''
+
+      const videoUrlMap: Record<string, string> = {
+        '繁花': 'https://v.qq.com/x/cover/mzc00200whsp9r6/a0047l69jnp.html',
+        '庆余年 第二季': 'https://v.qq.com/x/cover/mzc002002kqssyu/q4100dpkd26.html',
+        '飞驰人生2': 'https://v.qq.com/x/cover/mzc00200rx67svy/q410050ws4m.html',
+        '我的阿勒泰': 'https://www.iqiyi.com/v_al19ckpf80.html?e2=34da212765549d56104655c3840d8101&qyTrace=M0w49LfPEN3A1HS5',
+        '狂飙': 'https://www.iqiyi.com/v_xkt6z3z798.html?e2=5aba21b5552e3aa8f1e5d77a4441c53d&qyTrace=ALfGPhHdI9NOWylA',
+        '琅琊榜': 'https://w.yangshipin.cn/video?type=0&vid=s0000251n05&channel=txsp_quanwangsou'
+      }
+
+      if (videoUrlMap[title]) {
+        url = videoUrlMap[title]
+      } else {
+        const encodedTitle: string = encodeURIComponent(title)
+        url = `https://v.qq.com/x/search/?q=${encodedTitle}`
+      }
+
       const param: NavPathParam = {
         url: url,
         title: title
@@ -581,10 +674,10 @@ struct DramaPage {
   }
 
   private getStatusColor(status: string): string {
-    if (status === 'want') return Colors.warning
-    if (status === 'watching') return Colors.primary
-    if (status === 'finished') return Colors.success
-    return Colors.textSecondary
+    if (status === 'want') return '#FFB6C1' // 柔和粉色
+    if (status === 'watching') return '#B0E0E6' // 柔和浅青蓝
+    if (status === 'finished') return '#E8E8F0' // 柔和灰紫
+    return '#9A9AA3'
   }
 }
 

@@ -4,17 +4,26 @@ import DramaPage from './drama/DramaPage'
 import TheaterPage from './theater/TheaterPage'
 import MinePage from './mine/MinePage'
 
+interface TabConfig {
+  title: string
+  activeIcon: Resource
+  inactiveIcon: Resource
+}
+
 @Entry
 @Component
 struct Index {
   @State currentIndex: number = 0
 
-  private tabTitles: string[] = ['首页', '追剧', '观影厅', '我的']
-  private tabIcons: string[] = ['🏠', '🎬', '📡', '👤']
+  private tabs: TabConfig[] = [
+    { title: '首页', activeIcon: $r('app.media.tab_home_active'), inactiveIcon: $r('app.media.tab_home_inactive') },
+    { title: '追剧', activeIcon: $r('app.media.tab_drama_active'), inactiveIcon: $r('app.media.tab_drama_inactive') },
+    { title: '观影厅', activeIcon: $r('app.media.tab_theater_active'), inactiveIcon: $r('app.media.tab_theater_inactive') },
+    { title: '我的', activeIcon: $r('app.media.tab_mine_active'), inactiveIcon: $r('app.media.tab_mine_inactive') }
+  ]
 
   build() {
     Column() {
-      // 页面内容区
       Stack() {
         if (this.currentIndex === 0) {
           HomePage()
@@ -28,14 +37,15 @@ struct Index {
       }
       .layoutWeight(1)
 
-      // 底部Tab栏
       Row() {
-        ForEach(this.tabTitles, (title: string, index: number) => {
+        ForEach(this.tabs, (tab: TabConfig, index: number) => {
           Column() {
-            Text(this.tabIcons[index])
-              .fontSize(22)
+            Image(this.currentIndex === index ? tab.activeIcon : tab.inactiveIcon)
+              .width(24)
+              .height(24)
+              .objectFit(ImageFit.Contain)
 
-            Text(title)
+            Text(tab.title)
               .fontSize(10)
               .fontColor(this.currentIndex === index ? '#FF6B6B' : '#8E8E93')
               .margin({ top: 4 })
@@ -46,7 +56,7 @@ struct Index {
           .onClick(() => {
             this.currentIndex = index
           })
-        })
+        }, (tab: TabConfig, index: number) => tab.title)
       }
       .width('100%')
       .height(56)

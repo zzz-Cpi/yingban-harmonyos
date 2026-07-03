@@ -13,7 +13,6 @@ export struct VideoWebPage {
           src: this.url,
           controller: this.controller
         })
-
           .width('100%')
           .height('100%')
           .javaScriptAccess(true)
@@ -30,5 +29,14 @@ export struct VideoWebPage {
       .height('100%')
     }
     .title(this.title)
+    .onBackPressed(() => {
+      // 如果 WebView 有后退历史，先后退 WebView
+      if (this.controller.accessBackward()) {
+        this.controller.backward()
+        return true
+      }
+      // 否则返回追剧页
+      return false
+    })
   }
 }

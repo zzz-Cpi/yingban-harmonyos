@@ -487,6 +487,29 @@ export const mockHistoryDramas: HistoryDrama[] = getMockHistoryDramas()
 
 // ==================== TMDB 格式 Mock 数据（用于API失败时降级） ====================
 
+const MOVIE_OVERVIEWS: Record<string, string> = {
+  '繁花': '90年代初，上海黄河路的繁花似锦里，阿宝从普通工人一步步成为商界传奇。在时代浪潮中，他与三位性格迥异的女性上演了一幕幕爱恨交织的故事，展现了那个年代上海人的奋斗与情怀。',
+  '庆余年 第二季': '范闲历经生死考验回到京城，面对朝堂内外的重重危机。他一面调查母亲叶轻眉的死因，一面与各方势力周旋，在权谋斗争中不断成长，守护自己在乎的人。',
+  '我的阿勒泰': '女孩李娟来到新疆阿勒泰，在这片广袤的土地上，她与哈萨克族牧民一起生活，经历四季轮回。故事讲述了人与自然的和谐，以及在边疆生活中的温暖与感动。',
+  '飞驰人生2': '张驰决定重返赛车场，组建了一支"杂牌军"车队。他们克服资金、技术、人员等重重困难，在巴音布鲁克赛道上追逐梦想，诠释了永不放弃的赛车精神。',
+  '种地吧 第二季': '十位少年再次回归农田，在浙江杭州开启全新的种地生活。他们从播种到收获，经历汗水与欢笑，用青春和热血书写新时代新农人的成长故事。',
+  '不够善良的我们': '两个性格截然不同的女性在都市生活中相遇，她们在事业、爱情、友情中互相扶持又彼此碰撞。故事探讨了现代女性在追求自我与妥协之间的挣扎。',
+  '漫长的季节': '90年代东北小城，一起碎尸案牵扯出跨越二十年的恩怨纠葛。三个中年男人在寻找真相的过程中，揭开了时代变迁下普通人的命运浮沉。',
+  '外婆的新世界': '外婆突然离家出走，孙女踏上寻找外婆的旅程。在这个过程中，她逐渐了解到外婆不为人知的过去，也重新认识了亲情与人生的意义。',
+  '逃出白虎园': '一只白虎从动物园逃出，引发全城恐慌。在追捕过程中，人与动物之间的关系被重新审视，探讨了人与自然的和谐共处。',
+  '玫瑰的故事': '黄亦玫在人生的不同阶段经历了三段刻骨铭心的爱情。她在爱情与事业中不断探索自我，最终找到了属于自己的人生答案。',
+  '金庸武侠世界': '以金庸经典武侠小说为蓝本，讲述了郭靖、黄蓉、杨过等武侠人物的传奇故事，展现了江湖恩怨与家国情怀。',
+  '墨雨云间': '薛芳菲被陷害后改头换面，凭借智慧和勇气一步步揭开阴谋，在权谋斗争中守护正义，最终收获爱情与事业。',
+  '度华年': '李蓉意外重生回到过去，她凭借前世记忆改变命运，与裴文宣携手，在朝堂与后宫的纷争中书写传奇人生。',
+  '热辣滚烫': '中年女性杜乐莹在人生低谷时意外卷入拳击运动，她在拳击台上找回自信，重新定义自己的人生价值。',
+  '第二十条': '检察官韩明在办理一起案件时，发现了更多的疑点和背后的故事。影片探讨了法律与人性之间的复杂关系。',
+  '我们一起摇太阳': '两个身患重病的年轻人在医院相遇，他们相互鼓励，共同面对病魔，用爱和勇气点亮生命的最后时光。',
+  '熊出没·逆转时空': '光头强意外穿越回童年，与小时候的自己和熊大熊二一起经历了一场奇妙的冒险，明白了成长的意义。',
+  '红毯先生': '过气明星刘伟驰为了翻红参加真人秀，在拍摄过程中经历了种种啼笑皆非的事情，最终找到了人生的真谛。',
+  '大红包': '公司职员陈重为了收回随礼钱，策划了一场假婚礼。在这个过程中，他收获了意外的爱情和友情。',
+  '扫黑·决不放弃': '警方与黑恶势力展开殊死搏斗，面对重重困难和危险，他们坚守正义，最终将犯罪分子一网打尽。'
+}
+
 function createMockTMDBMedia(
   id: number,
   title: string,
@@ -503,7 +526,7 @@ function createMockTMDBMedia(
     name: mediaType === 'tv' ? title : undefined,
     poster_path: posterPath,
     backdrop_path: posterPath,
-    overview: '这是一部精彩的影视作品',
+    overview: MOVIE_OVERVIEWS[title] || '这是一部精彩的影视作品',
     vote_average: voteAverage,
     vote_count: 1000,
     release_date: mediaType === 'movie' ? releaseDate : undefined,
@@ -549,6 +572,9 @@ function getMockNowPlaying(): TMDBListResponse {
   list.push(createMockTMDBMedia(4, '飞驰人生2', 'poster_feichi', 8.0, '2024-02-10', 'movie', [1, 4], TRAILER_FEICHI))
   list.push(createMockTMDBMedia(5, '种地吧 第二季', 'poster_zhongdiba', 8.6, '2024-03-01', 'tv', [2, 4, 5], TRAILER_ZHONGDIBA))
   list.push(createMockTMDBMedia(6, '不够善良的我们', 'poster_bushanliang', 8.8, '2024-04-01', 'tv', [2, 5], TRAILER_BUSHANLIANG))
+  list.push(createMockTMDBMedia(7, '漫长的季节', 'poster_manchangdeji', 9.1, '2023-04-22', 'tv', [2, 3, 5], TRAILER_MANCHANG))
+  list.push(createMockTMDBMedia(8, '玫瑰的故事', 'poster_meiguidagushi', 7.8, '2024-06-01', 'tv', [2, 5], TRAILER_MEIGUI))
+  list.push(createMockTMDBMedia(9, '墨雨云间', 'poster_moyuyunjian', 7.9, '2024-04-30', 'tv', [2, 3, 5], TRAILER_MOYU))
   const res: TMDBListResponse = {
     page: 1,
     results: list,

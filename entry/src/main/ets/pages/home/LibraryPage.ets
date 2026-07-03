@@ -1,7 +1,7 @@
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../../utils/Constants'
 import { mockAllMedia, mockCategories, Category } from '../../model/MockData'
-import { TMDBMedia, getMediaTitle, getMediaYear } from '../../model/TMDBTypes'
-import { router } from '@kit.ArkUI'
+import { TMDBMedia, getMediaTitle, getMediaYear, getTestVideoUrl } from '../../model/TMDBTypes'
+import router from '@ohos.router'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const TAG = 'LibraryPage'
@@ -61,6 +61,8 @@ struct LibraryPage {
       let videoUrl: string | Resource = ''
       if (media.trailer_url !== undefined && media.trailer_url !== null) {
         videoUrl = media.trailer_url
+      } else {
+        videoUrl = getTestVideoUrl(media.id)
       }
       router.pushUrl({
         url: 'pages/home/VideoPlayerPage',

@@ -6,10 +6,7 @@ import promptAction from '@ohos.promptAction'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const TAG = 'TheaterPage'
-
-interface RouterParams {
-  scanResult?: string
-}
+const SCAN_RESULT_KEY = 'theater_scan_result'
 
 // 房间主题配置
 interface RoomTheme {
@@ -47,21 +44,27 @@ struct TheaterPage {
   @State private currentRoomInfo: Room | null = null
   @State private showJoinConfirm: boolean = false
   @State private selectedRoom: Room | null = null
+  @StorageProp(SCAN_RESULT_KEY) @Watch('onScanResultChanged') private scanResult: string = ''
 
   aboutToAppear() {
     this.initService()
     this.loadNearbyRooms()
+    this.checkScanResult()
   }
 
-  // 页面显示时检查是否从扫码页返回并带有结果
   onPageShow(): void {
-    const params = router.getParams() as RouterParams
-    if (params && params.scanResult) {
-      const scanResult: string = params.scanResult
-      hilog.info(0, TAG, `Received scan result: ${scanResult}`)
-      // 清除参数避免重复触发
-      router.replaceUrl({ url: 'pages/theater/TheaterPage' })
-      this.handleScanResult(scanResult)
+    this.checkScanResult()
+  }
+
+  private onScanResultChanged(): void {
+    this.checkScanResult()
+  }
+
+  private checkScanResult(): void {
+    if (this.scanResult && this.scanResult.length > 0) {
+      hilog.info(0, TAG, `Received scan result from AppStorage: ${this.scanResult}`)
+      AppStorage.delete(SCAN_RESULT_KEY)
+      this.handleScanResult(this.scanResult)
     }
   }
 
@@ -253,6 +256,9 @@ struct TheaterPage {
 
   build() {
     Stack() {
+      // 背景层：低透明度渐变朦胧效果
+      this.BackgroundLayer()
+
       Column() {
         this.TopBar()
 
@@ -275,7 +281,6 @@ struct TheaterPage {
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(Colors.background)
 
       if (this.showCreateDialog) {
         this.CreateRoomDialog()
@@ -291,119 +296,211 @@ struct TheaterPage {
     }
     .width('100%')
     .height('100%')
+    .backgroundColor('#F8F9FB')
   }
 
+  // 背景朦胧渐变层 - 粉蓝梦幻柔和
+  @Builder
+  BackgroundLayer() {
+    Stack() {
+      // 粉色渐变层
+      Column()
+        .width('100%')
+        .height(300)
+        .linearGradient({
+          direction: GradientDirection.Bottom,
+          colors: [
+            [0x20FFB6C1, 0],
+            [0x40FFC0CB, 0.4],
+            [0x30FFE4E1, 0.7],
+            [0x10FFF0F5, 1]
+          ]
+        })
+
+      // 浅蓝渐变层（旋转叠加）
+      Column()
+        .width('100%')
+        .height(280)
+        .linearGradient({
+          direction: GradientDirection.Bottom,
+          colors: [
+            [0x20B0E0E6, 0],
+            [0x30E0F0F5, 0.5],
+            [0x20F0F8FF, 1]
+          ]
+        })
+        .rotate({ angle: 12 })
+        .position({ x: 30, y: -40 })
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  // 顶部导航栏 - 磨砂毛玻璃效果
   @Builder
   TopBar() {
-    Column() {
-      Row() {
-        Column() {
-          Text('观影厅')
-            .fontSize(FontSizes.pageTitle)
-            .fontWeight(FontWeightValue.bold)
-            .fontColor(Colors.textPrimary)
+    Row() {
+      Column() {
+        Text('观影厅')
+          .fontSize(24)
+          .fontWeight(FontWeightValue.bold)
+          .fontColor('#2D2D3A')
 
-          Text('近场零流量同步观影')
-            .fontSize(FontSizes.helper)
-            .fontColor(Colors.textSecondary)
-            .margin({ top: 2 })
-        }
-        .alignItems(HorizontalAlign.Start)
-
-        Blank()
-
-        Row({ space: 12 }) {
-          if (this.isScanning) {
-            LoadingProgress()
-              .width(18)
-              .height(18)
-              .color(Colors.secondary)
-          }
-
-          Text('🔄')
-            .fontSize(18)
-            .onClick(() => {
-              this.loadNearbyRooms()
-            })
-        }
+        Text('近场分布式同步观影 | 鸿蒙软总线原生能力')
+          .fontSize(11)
+          .fontColor('#9A9AA3')
+          .margin({ top: 2 })
       }
-      .width('100%')
-      .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.md })
-      .backgroundColor(Color.White)
+      .alignItems(HorizontalAlign.Start)
+
+      Blank()
+
+      Row() {
+        if (this.isScanning) {
+          LoadingProgress()
+            .width(18)
+            .height(18)
+            .color('#B0E0E6')
+            .margin({ right: 8 })
+        }
+
+        // 历史按钮 - 磨砂圆形
+        Stack() {
+          Row()
+            .width(36)
+            .height(36)
+            .borderRadius(18)
+            .backgroundColor('rgba(255,240,245,0.7)')
+            .backdropBlur(15)
+
+          Text('🕐')
+            .fontSize(16)
+        }
+        .onClick(() => {
+          promptAction.showToast({ message: '历史记录开发中', duration: 1500 })
+        })
+      }
     }
+    .width('100%')
+    .padding({ left: 20, right: 20, top: 12, bottom: 12 })
+    .backgroundColor('rgba(255,240,245,0.4)')
+    .backdropBlur(20)
   }
 
+  // 核心操作区：创建房间 + 扫码加入 - 粉蓝渐变柔和风格
   @Builder
   CoreActions() {
-    Column() {
-      // 创建观影房按钮
-      Column() {
+    Column({ space: 12 }) {
+      // 创建观影房主按钮：粉到浅蓝渐变
+      Stack({ alignContent: Alignment.Start }) {
+        Row()
+          .width('100%')
+          .height(88)
+          .linearGradient({
+            direction: GradientDirection.Right,
+            colors: [['#FFB6C1', 0], ['#FFC0CB', 0.3], ['#B0E0E6', 0.7], ['#E0F0F5', 1]]
+          })
+          .borderRadius(20)
+          .shadow({ radius: 16, color: 'rgba(255, 182, 193, 0.25)', offsetY: 8 })
+
         Row() {
-          Text('➕')
-            .fontSize(24)
-            .fontColor(Color.White)
+          Stack({ alignContent: Alignment.Center }) {
+            Row()
+              .width(44)
+              .height(44)
+              .borderRadius(22)
+              .backgroundColor('rgba(255,255,255,0.3)')
+              .backdropBlur(10)
+
+            Text('+')
+              .fontSize(28)
+              .fontColor('#2D2D3A')
+              .fontWeight(FontWeightValue.regular)
+          }
 
           Column() {
             Text('创建观影房')
-              .fontSize(FontSizes.body)
-              .fontWeight(FontWeightValue.semibold)
-              .fontColor(Color.White)
+              .fontSize(18)
+              .fontWeight(FontWeightValue.bold)
+              .fontColor('#2D2D3A')
 
             Text('邀请好友一起同步观影')
-              .fontSize(FontSizes.helper)
-              .fontColor('rgba(255,255,255,0.8)')
+              .fontSize(12)
+              .fontColor('rgba(45,45,58,0.7)')
+              .margin({ top: 2 })
           }
-          .margin({ left: Spacing.md })
+          .margin({ left: 14 })
           .alignItems(HorizontalAlign.Start)
         }
-        .width('100%')
+        .padding({ left: 24, right: 24 })
       }
       .width('100%')
-      .height(80)
-      .backgroundColor(Colors.primary)
-      .borderRadius(BorderRadius.large)
-      .padding({ left: Spacing.xl, right: Spacing.xl })
-      .shadow(Shadows.floating)
+      .height(88)
       .onClick(() => {
         hilog.info(0, TAG, 'Create room button clicked')
         this.showCreateDialog = true
       })
 
-      Column() {
+      // 扫码加入：磨砂半透明卡片+粉蓝渐变描边
+      Stack({ alignContent: Alignment.Start }) {
+        Row()
+          .width('100%')
+          .height(76)
+          .backgroundColor('rgba(255,240,245,0.6)')
+          .backdropBlur(25)
+          .borderRadius(20)
+          .border({ width: 1.5, color: 'rgba(255,182,193,0.5)' })
+          .shadow({ radius: 10, color: 'rgba(176,224,230,0.15)', offsetY: 4 })
+
         Row() {
-          Text('📷')
-            .fontSize(24)
-            .fontColor(Colors.secondary)
+          Stack({ alignContent: Alignment.Center }) {
+            Row()
+              .width(40)
+              .height(40)
+              .borderRadius(20)
+              .linearGradient({
+                direction: GradientDirection.Bottom,
+                colors: [['rgba(255,182,193,0.3)', 0], ['rgba(176,224,230,0.3)', 1]]
+              })
+
+            Image($r('app.media.xiangji'))
+              .width(20)
+              .height(20)
+          }
 
           Column() {
-            Text('扫码加入')
-              .fontSize(FontSizes.body)
+            Text('扫码加入房间')
+              .fontSize(16)
               .fontWeight(FontWeightValue.semibold)
-              .fontColor(Colors.textPrimary)
+              .fontColor('#2D2D3A')
 
-            Text('扫描二维码加入房间')
-              .fontSize(FontSizes.helper)
-              .fontColor(Colors.textSecondary)
+            Text('扫描二维码快速加入')
+              .fontSize(12)
+              .fontColor('#9A9AA3')
+              .margin({ top: 2 })
           }
-          .margin({ left: Spacing.md })
+          .margin({ left: 14 })
+          .alignItems(HorizontalAlign.Start)
+
+          Blank()
+
+          Text('›')
+            .fontSize(20)
+            .fontColor('#C8C8D0')
         }
-        .width('100%')
+        .padding({ left: 24, right: 20 })
       }
       .width('100%')
-      .height(80)
-      .backgroundColor(Color.White)
-      .borderRadius(BorderRadius.large)
-      .padding({ left: Spacing.xl, right: Spacing.xl })
-      .margin({ top: Spacing.md })
-      .shadow(Shadows.card)
+      .height(76)
       .onClick(() => {
         this.onScanClick()
       })
     }
     .width('100%')
-    .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.xl })
+    .padding({ left: 20, right: 20, top: 16 })
   }
 
+  // 错误提示 - 柔和粉色风格
   @Builder
   ErrorTip() {
     Row() {
@@ -411,226 +508,289 @@ struct TheaterPage {
         .fontSize(14)
 
       Text(this.errorMessage)
-        .fontSize(FontSizes.helper)
-        .fontColor(Colors.warning)
-        .margin({ left: Spacing.sm })
+        .fontSize(12)
+        .fontColor('#E8A0B0')
+        .margin({ left: 8 })
     }
     .width('100%')
-    .padding(Spacing.md)
-    .backgroundColor('#FFF8E1')
-    .borderRadius(BorderRadius.medium)
-    .margin({ left: Spacing.lg, right: Spacing.lg, top: Spacing.md })
+    .padding(12)
+    .backgroundColor('rgba(255,240,245,0.8)')
+    .borderRadius(16)
+    .margin({ left: 20, right: 20, top: 12 })
   }
 
+  // 附近房间模块 - 粉蓝柔和风格
   @Builder
   NearbyRooms() {
     Column() {
+      // 标题栏
       Row() {
-        Row({ space: 8 }) {
+        Row({ space: 10 }) {
+          // 粉蓝渐变环形图标
           Stack({ alignContent: Alignment.Center }) {
-            if (this.isScanning) {
-              LoadingProgress()
-                .width(20)
-                .height(20)
-                .color(Colors.secondary)
-            } else {
-              Row()
-                .width(20)
-                .height(20)
-                .borderRadius(10)
-                .border({ width: 2, color: Colors.secondary })
-                .backgroundColor(Color.White)
+            Row()
+              .width(22)
+              .height(22)
+              .borderRadius(11)
+              .linearGradient({
+                direction: GradientDirection.Right,
+                colors: [['#FFB6C1', 0], ['#B0E0E6', 1]]
+              })
 
-              Row()
-                .width(8)
-                .height(8)
-                .borderRadius(4)
-                .backgroundColor(Colors.secondary)
-            }
+            Row()
+              .width(10)
+              .height(10)
+              .borderRadius(5)
+              .backgroundColor('#FFF0F5')
           }
-          .width(20)
-          .height(20)
 
           Text('附近房间')
-            .fontSize(FontSizes.sectionTitle)
+            .fontSize(18)
             .fontWeight(FontWeightValue.semibold)
-            .fontColor(Colors.textPrimary)
+            .fontColor('#2D2D3A')
         }
 
         Blank()
 
-        Text(this.isScanning ? '扫描中...' : `${this.nearbyRooms.length}个房间`)
-          .fontSize(FontSizes.caption)
-          .fontColor(Colors.textSecondary)
+        Row({ space: 10 }) {
+          Text(this.isScanning ? '扫描中...' : `${this.nearbyRooms.length}个在线`)
+            .fontSize(12)
+            .fontColor('#9A9AA3')
+
+          if (this.isScanning) {
+            LoadingProgress()
+              .width(14)
+              .height(14)
+              .color('#B0E0E6')
+          } else {
+            Image($r('app.media.shuaxin'))
+              .width(14)
+              .height(14)
+              .onClick(() => {
+                this.loadNearbyRooms()
+              })
+          }
+        }
       }
       .width('100%')
-      .margin({ bottom: Spacing.md })
+      .margin({ bottom: 14 })
 
+      // 房间列表 or 空状态
       if (this.nearbyRooms.length === 0) {
         this.EmptyRoomTip()
       } else {
-        ForEach(this.nearbyRooms, (room: Room) => {
-          this.RoomItem(room)
-        }, (room: Room) => room.roomId)
+        Scroll() {
+          Row({ space: 12 }) {
+            ForEach(this.nearbyRooms, (room: Room) => {
+              this.RoomCard(room)
+            }, (room: Room) => room.roomId)
+          }
+          .padding({ right: 4 })
+        }
+        .scrollable(ScrollDirection.Horizontal)
+        .scrollBar(BarState.Off)
       }
     }
     .width('100%')
-    .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.xl })
+    .padding({ left: 20, right: 20, top: 28 })
   }
 
+  // 空状态：简约梦幻柔和风格
   @Builder
   EmptyRoomTip() {
     Column() {
-      Text('📡')
-        .fontSize(48)
-        .opacity(0.5)
+      Stack({ alignContent: Alignment.Center }) {
+        // 粉蓝渐变圆形底
+        Row()
+          .width(72)
+          .height(72)
+          .borderRadius(36)
+          .linearGradient({
+            direction: GradientDirection.Bottom,
+            colors: [['rgba(255,182,193,0.25)', 0], ['rgba(176,224,230,0.25)', 1]]
+          })
+
+        // 简约线性插画
+        Column() {
+          Row()
+            .width(32)
+            .height(20)
+            .borderRadius(10)
+            .border({ width: 1.5, color: '#E8D0D8' })
+
+          Row()
+            .width(20)
+            .height(12)
+            .borderRadius(6)
+            .border({ width: 1.5, color: '#D8E0E8' })
+            .margin({ top: 4 })
+        }
+      }
 
       Text(this.isScanning ? '正在扫描附近房间...' : '暂无附近房间')
-        .fontSize(FontSizes.caption)
-        .fontColor(Colors.textTertiary)
-        .margin({ top: Spacing.md })
+        .fontSize(14)
+        .fontColor('#7A7A88')
+        .fontWeight(FontWeightValue.medium)
+        .margin({ top: 14 })
 
-      Text(this.isScanning ? '请稍候...' : '创建一个房间开始观影吧')
-        .fontSize(FontSizes.helper)
-        .fontColor(Colors.textTertiary)
+      Text(this.isScanning ? '请确保设备已开启蓝牙和WLAN' : '创建一个房间，邀请好友加入吧')
+        .fontSize(12)
+        .fontColor('#B8B8C0')
         .margin({ top: 4 })
     }
     .width('100%')
-    .height(160)
-    .backgroundColor(Color.White)
-    .borderRadius(BorderRadius.large)
+    .height(170)
+    .backgroundColor('rgba(255,240,245,0.5)')
+    .backdropBlur(20)
+    .borderRadius(20)
     .justifyContent(FlexAlign.Center)
+    .shadow({ radius: 12, color: 'rgba(255,182,193,0.1)', offsetY: 4 })
   }
 
+  // 房间卡片（横向滚动卡片）- 磨砂半透明风格
   @Builder
-  RoomItem(room: Room) {
+  RoomCard(room: Room) {
     Column() {
       Row() {
+        Stack({ alignContent: Alignment.Center }) {
+          Row()
+            .width(40)
+            .height(40)
+            .borderRadius(20)
+            .linearGradient({
+              direction: GradientDirection.Bottom,
+              colors: [['#FFB6C1', 0], ['#B0E0E6', 1]]
+            })
+
+          Text(room.hostName.substring(0, 1))
+            .fontSize(16)
+            .fontColor(Color.White)
+            .fontWeight(FontWeightValue.bold)
+        }
+
         Column() {
           Text(room.roomName)
-            .fontSize(FontSizes.body)
-            .fontWeight(FontWeightValue.medium)
-            .fontColor(room.memberCount >= room.maxMember ? Colors.textTertiary : Colors.textPrimary)
-
-          Row({ space: 8 }) {
-            Text('房主: ' + room.hostName)
-              .fontSize(FontSizes.helper)
-              .fontColor(Colors.textSecondary)
-
-            Text('·')
-              .fontSize(FontSizes.helper)
-              .fontColor(Colors.textTertiary)
-
-            Text(room.memberCount + '/' + room.maxMember + '人')
-              .fontSize(FontSizes.helper)
-              .fontColor(room.memberCount >= room.maxMember ? Colors.error : Colors.textSecondary)
-          }
-          .margin({ top: 4 })
-        }
-        .alignItems(HorizontalAlign.Start)
-
-        Blank()
-
-        Row({ space: 8 }) {
-          if (room.memberCount >= room.maxMember) {
-            Text('已满')
-              .fontSize(10)
-              .fontColor(Color.White)
-              .backgroundColor(Colors.error)
-              .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-              .borderRadius(BorderRadius.small)
-          } else if (room.status === 'playing') {
-            Text('播放中')
-              .fontSize(10)
-              .fontColor(Color.White)
-              .backgroundColor(Colors.primary)
-              .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-              .borderRadius(BorderRadius.small)
-          } else {
-            Text('等待中')
-              .fontSize(10)
-              .fontColor(Colors.secondary)
-              .backgroundColor('#E0F7F5')
-              .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-              .borderRadius(BorderRadius.small)
-          }
-
-          Text('>')
             .fontSize(14)
-            .fontColor(Colors.textTertiary)
+            .fontWeight(FontWeightValue.semibold)
+            .fontColor(room.memberCount >= room.maxMember ? '#B8B8C0' : '#2D2D3A')
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+          Text(room.memberCount + '/' + room.maxMember + '人')
+            .fontSize(11)
+            .fontColor(room.memberCount >= room.maxMember ? '#C8C8D0' : '#9A9AA3')
+            .margin({ top: 2 })
+        }
+        .margin({ left: 10 })
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+
+        // 状态标签 - 粉蓝柔和
+        if (room.memberCount >= room.maxMember) {
+          Text('已满')
+            .fontSize(10)
+            .fontColor(Color.White)
+            .linearGradient({
+              direction: GradientDirection.Right,
+              colors: [['#E8A0B0', 0], ['#B0E0E6', 1]]
+            })
+            .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            .borderRadius(8)
+        } else if (room.status === 'playing') {
+          Text('播放中')
+            .fontSize(10)
+            .fontColor(Color.White)
+            .backgroundColor('#B0E0E6')
+            .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            .borderRadius(8)
+        } else {
+          Text('等待中')
+            .fontSize(10)
+            .fontColor('#FFB6C1')
+            .backgroundColor('rgba(255,182,193,0.15)')
+            .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            .borderRadius(8)
         }
       }
       .width('100%')
-
-      if (room.movieTitle) {
-        Row() {
-          Text('▶')
-            .fontSize(12)
-            .fontColor(Colors.textSecondary)
-
-          Text('正在播放: ' + room.movieTitle)
-            .fontSize(FontSizes.helper)
-            .fontColor(Colors.textSecondary)
-            .margin({ left: 4 })
-        }
-        .margin({ top: Spacing.sm })
-      }
     }
-    .width('100%')
-    .padding(Spacing.lg)
-    .backgroundColor(Color.White)
-    .borderRadius(BorderRadius.large)
-    .margin({ bottom: Spacing.md })
-    .shadow(Shadows.card)
+    .width(170)
+    .padding(14)
+    .backgroundColor('rgba(255,240,245,0.6)')
+    .backdropBlur(15)
+    .borderRadius(20)
+    .border({ width: 1, color: 'rgba(255,182,193,0.3)' })
+    .shadow({ radius: 10, color: 'rgba(176,224,230,0.1)', offsetY: 4 })
     .opacity(room.memberCount >= room.maxMember ? 0.6 : 1)
     .onClick(() => {
       this.onJoinRoom(room)
     })
   }
 
+  // 观影厅核心优势 - 柔和浪漫风格
   @Builder
   UsageTips() {
     Column() {
       Row() {
-        Text('观影厅使用说明')
-          .fontSize(FontSizes.sectionTitle)
-          .fontWeight(FontWeightValue.semibold)
-          .fontColor(Colors.textPrimary)
+        Text('观影厅核心优势')
+          .fontSize(18)
+          .fontWeight(FontWeightValue.bold)
+          .fontColor('#2D2D3A')
       }
       .width('100%')
-      .margin({ bottom: Spacing.md })
+      .margin({ bottom: 14 })
 
-      Row({ space: Spacing.md }) {
-        this.TipItem('📡', '无需流量', '近场直连')
-        this.TipItem('📱', '一碰建组', '鸿蒙设备')
-        this.TipItem('🎬', '同步播放', '进度一致')
+      Row({ space: 10 }) {
+        this.AdvantageCard($r('app.media.1'), '无需流量', '近场直连', 'rgba(255,182,193,0.2)', '#FFB6C1')
+        this.AdvantageCard($r('app.media.2'), '一碰建组', '鸿蒙设备', 'rgba(176,224,230,0.2)', '#B0E0E6')
+        this.AdvantageCard($r('app.media.3'), '同步播放', '进度一致', 'rgba(255,192,203,0.15)', '#FFC0CB')
       }
+      .width('100%')
     }
     .width('100%')
-    .padding({ left: Spacing.lg, right: Spacing.lg, top: Spacing.xl })
+    .padding({ left: 20, right: 20, top: 28 })
   }
 
+  // 优势卡片 - 磨砂半透明柔和风格
   @Builder
-  TipItem(icon: string, title: string, subtitle: string) {
+  AdvantageCard(icon: string | Resource, title: string, subtitle: string, bgColor: string, accentColor: string) {
     Column() {
-      Text(icon)
-        .fontSize(24)
+      Stack({ alignContent: Alignment.Center }) {
+        Row()
+          .width(44)
+          .height(44)
+          .borderRadius(22)
+          .linearGradient({
+            direction: GradientDirection.Bottom,
+            colors: [[bgColor, 0], [accentColor, 1]]
+          })
+          .backdropBlur(10)
+
+        Image(icon)
+          .width(22)
+          .height(22)
+          .objectFit(ImageFit.Contain)
+      }
 
       Text(title)
-        .fontSize(FontSizes.caption)
-        .fontColor(Colors.textPrimary)
-        .margin({ top: Spacing.sm })
+        .fontSize(13)
+        .fontWeight(FontWeightValue.semibold)
+        .fontColor('#2D2D3A')
+        .margin({ top: 10 })
 
       Text(subtitle)
-        .fontSize(FontSizes.helper)
-        .fontColor(Colors.textSecondary)
+        .fontSize(11)
+        .fontColor('#9A9AA3')
+        .margin({ top: 2 })
     }
     .layoutWeight(1)
-    .height(80)
-    .backgroundColor(Color.White)
-    .borderRadius(BorderRadius.medium)
+    .padding({ top: 16, bottom: 16 })
+    .backgroundColor('rgba(255,240,245,0.6)')
+    .backdropBlur(20)
+    .borderRadius(20)
+    .border({ width: 1, color: 'rgba(255,182,193,0.25)' })
     .justifyContent(FlexAlign.Center)
-    .shadow(Shadows.card)
+    .shadow({ radius: 8, color: 'rgba(255,182,193,0.08)', offsetY: 3 })
   }
 
   @Builder

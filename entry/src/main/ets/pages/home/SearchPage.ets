@@ -1,6 +1,6 @@
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../../utils/Constants'
 import { mockAllMedia } from '../../model/MockData'
-import { TMDBMedia, getMediaTitle, getMediaYear } from '../../model/TMDBTypes'
+import { TMDBMedia, getMediaTitle, getMediaYear, getTestVideoUrl } from '../../model/TMDBTypes'
 import router from '@ohos.router'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
@@ -59,6 +59,8 @@ struct SearchPage {
       let videoUrl: string | Resource = ''
       if (media.trailer_url !== undefined && media.trailer_url !== null) {
         videoUrl = media.trailer_url
+      } else {
+        videoUrl = getTestVideoUrl(media.id)
       }
       router.pushUrl({
         url: 'pages/home/VideoPlayerPage',
@@ -281,3 +283,5 @@ struct SearchPage {
     .backgroundColor('#F8F9FA')
   }
 }
+
+
