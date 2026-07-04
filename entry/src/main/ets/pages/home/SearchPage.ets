@@ -456,18 +456,6 @@ struct SearchPage {
                             .onClick(() => {
                               this.navigateToAIPlayer(item)
                             })
-                            .scale({ x: 1, y: 1 })
-                            .animation({
-                              duration: 150,
-                              curve: Curve.EaseOut
-                            })
-                            .onTouch((event: TouchEvent) => {
-                              if (event.type === TouchType.Down) {
-                                (event as any).target.scale({ x: 0.98, y: 0.98 })
-                              } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-                                (event as any).target.scale({ x: 1, y: 1 })
-                              }
-                            })
                           })
 
                           Text('点击卡片即可播放')
