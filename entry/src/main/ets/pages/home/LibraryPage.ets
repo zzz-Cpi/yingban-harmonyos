@@ -72,7 +72,9 @@ struct LibraryPage {
           posterUrl: media.poster_path,
           rating: media.vote_average,
           year: getMediaYear(media),
-          overview: media.overview
+          overview: media.overview,
+          mediaType: media.media_type,
+          episodeCount: media.episode_count
         }
       })
     } catch (err) {

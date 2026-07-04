@@ -2,13 +2,15 @@
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../../utils/Constants'
 import { mockDramas, mockPlaylists, Drama, Playlist, createPlaylist } from '../../model/MockData'
 import router from '@ohos.router'
-import common from '@ohos.app.ability.common'
-import Want from '@ohos.app.ability.Want'
+import { hilog } from '@kit.PerformanceAnalysisKit'
+import promptAction from '@ohos.promptAction'
+
+const TAG = 'DramaPage'
 
 
 @Component
 struct DramaPage {
-  @State private currentTab: number = 0
+  @State private currentTab: number = 1
   @State private currentPlaylist: number = 1
 
   // 新建片单弹窗状态
@@ -59,6 +61,7 @@ struct DramaPage {
       if (this.isManageMode) {
         this.ActionBottomBar()
       }
+
 
       // 弹窗层级，放在最后保证覆盖全局
       this.CreatePlaylistDialog()
@@ -453,15 +456,19 @@ struct DramaPage {
           this.selectedDramas.push(drama)
         }
       } else {
-        const url = this.getDramaUrl(drama.movie.title)
-        if (url) {
-          let context = getContext(this) as common.UIAbilityContext
-          let want: Want = {
-            action: 'ohos.want.action.viewData',
-            entities: ['entity.system.browsable'],
-            uri: url
-          }
-          context.startAbility(want)
+        const url = drama.movie.videoUrl
+        hilog.info(0, TAG, `Card clicked: ${drama.movie.title}, url=${url}`)
+        if (url && url.length > 0) {
+          router.pushUrl({
+            url: 'pages/home/WebPlayerPage',
+            params: {
+              url: url,
+              title: drama.movie.title
+            }
+          })
+        } else {
+          hilog.warn(0, TAG, `No videoUrl for: ${drama.movie.title}`)
+          promptAction.showToast({ message: '暂无播放链接', duration: 1500 })
         }
       }
     })

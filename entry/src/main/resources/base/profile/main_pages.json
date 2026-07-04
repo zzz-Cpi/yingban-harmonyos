@@ -1,12 +1,16 @@
 {
   "src": [
     "pages/LoginPage",
+    "pages/RegisterPage",
+    "pages/ResetPasswordPage",
     "pages/Index",
     "pages/theater/RoomDetailPage",
     "pages/theater/ScanQrCodePage",
     "pages/home/VideoPlayerPage",
+    "pages/home/WebPlayerPage",
     "pages/home/SearchPage",
     "pages/home/LibraryPage",
+    "pages/home/AIChatPage",
     "pages/mine/DownloadPage",
     "pages/mine/AchievementPage",
     "pages/mine/MessagePage",

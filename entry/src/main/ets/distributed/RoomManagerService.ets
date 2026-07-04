@@ -459,10 +459,18 @@ export class RoomManagerService {
       )
       hilog.info(0, TAG, `📦 Found ${roomEntries.length} room entries in KVStore`)
 
+      const EXPIRATION_TIME = 30 * 60 * 1000
+
       for (let i = 0; i < roomEntries.length; i++) {
         try {
           hilog.info(0, TAG, `📦 Parsing room entry: ${roomEntries[i].key}`)
           const roomSync: RoomMemberSync = JSON.parse(roomEntries[i].value)
+
+          if (Date.now() - roomSync.createdTime > EXPIRATION_TIME) {
+            hilog.info(0, TAG, `⚠️ Room expired, removing: ${roomSync.roomName}`)
+            await dataSync.delete(roomEntries[i].key)
+            continue
+          }
 
           const hostMember: RoomMember = {
             userId: roomSync.hostId,
@@ -498,31 +506,7 @@ export class RoomManagerService {
     }
 
     if (rooms.length === 0) {
-      hilog.info(0, TAG, `⚠️ No KVStore rooms found, using discovered devices as fallback`)
-      for (let i = 0; i < discoveredDevices.length; i++) {
-        const device = discoveredDevices[i]
-        if (!device.isOnline) continue
-        const hostMember: RoomMember = {
-          userId: device.deviceId,
-          userName: device.deviceName,
-          isHost: true,
-          isOnline: true,
-          deviceId: device.deviceId
-        }
-        const room: Room = {
-          roomId: 'room_' + device.deviceId,
-          roomName: device.deviceName + '的观影房',
-          hostId: device.deviceId,
-          hostName: device.deviceName,
-          memberCount: 1,
-          maxMember: 8,
-          status: DistributedConstants.ROOM_STATUS_WAITING,
-          createdTime: Date.now(),
-          members: [hostMember]
-        }
-        rooms.push(room)
-        hilog.info(0, TAG, `✅ Created device room: ${room.roomName}`)
-      }
+      hilog.info(0, TAG, `⚠️ No KVStore rooms found`)
     }
 
     hilog.info(0, TAG, `🏠 Total nearby rooms: ${rooms.length}`)

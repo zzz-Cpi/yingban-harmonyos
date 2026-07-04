@@ -20,6 +20,7 @@ export interface TMDBMedia {
   original_title?: string
   original_name?: string
   trailer_url?: string | Resource
+  episode_count?: number
 }
 
 // 分页响应

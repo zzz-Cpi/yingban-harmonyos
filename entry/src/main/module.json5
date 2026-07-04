@@ -70,6 +70,19 @@
             "resource": "$profile:backup_config"
           }
         ],
+      },
+      {
+        "name": "DramaWidgetAbility",
+        "srcEntry": "./ets/widget/DramaWidgetAbility.ets",
+        "type": "form",
+        "description": "$string:drama_widget_desc",
+        "exported": true,
+        "metadata": [
+          {
+            "name": "ohos.extension.form",
+            "resource": "$profile:form_config"
+          }
+        ]
       }
     ]
   }

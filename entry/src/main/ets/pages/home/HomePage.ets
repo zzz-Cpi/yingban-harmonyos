@@ -1,12 +1,10 @@
 // 首页 - 内容发现入口（深度精细化高级静谧浪漫风格优化版）
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeightValue } from '../../utils/Constants'
 import { mockCategories, Category, mockNowPlaying, mockTrending, mockPopularMovies, mockOnAirTv } from '../../model/MockData'
-import { getTMDBService, TMDBService } from '../../model/TMDBService'
-import { TMDBMedia, getImageUrl, getMediaTitle, getMediaYear, getTestVideoUrl, TMDBListResponse } from '../../model/TMDBTypes'
+import { TMDBMedia, getImageUrl, getMediaTitle, getMediaYear, getTestVideoUrl } from '../../model/TMDBTypes'
 import router from '@ohos.router'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import promptAction from '@ohos.promptAction'
-import { SakuraLoading } from '../../components/SakuraLoading'
 
 const TAG = 'HomePage'
 
@@ -23,16 +21,14 @@ struct HomePage {
   @State private trending: TMDBMedia[] = []
   @State private popularMovies: TMDBMedia[] = []
   @State private onAirTv: TMDBMedia[] = []
-  @State private isLoading: boolean = true
+  @State private isLoading: boolean = false
   @State private hasError: boolean = false
   @State private errorMsg: string = ''
-  @State private useMockData: boolean = false
-  @State private isLoadingTrailer: boolean = false
+  @State private useMockData: boolean = true
   // 新增：按钮按压状态管理
   @State private categoryPressedStates: boolean[] = [false, false, false, false, false]
   @State private refreshPressed: boolean = false
   @State private searchPressed: boolean = false
-  private tmdbService: TMDBService | null = null
   // 新增：自动轮播相关
   private currentCarouselIndex: number = 0
   private scrollController: Scroller = new Scroller()
@@ -41,15 +37,10 @@ struct HomePage {
   private cardGap: number = 12
 
   aboutToAppear(): void {
-    this.tmdbService = getTMDBService()
     this.loadAllData()
   }
 
   aboutToDisappear(): void {
-    if (this.tmdbService) {
-      this.tmdbService.destroy()
-      this.tmdbService = null
-    }
     this.stopCarousel()
   }
 
@@ -90,40 +81,15 @@ struct HomePage {
   }
 
   private async loadAllData(): Promise<void> {
-    this.isLoading = true
+    this.isLoading = false
     this.hasError = false
     this.errorMsg = ''
-
-    try {
-      if (!this.tmdbService) {
-        throw new Error('服务未初始化')
-      }
-
-      const nowPlayingRes: TMDBListResponse = await this.tmdbService.getNowPlayingMovies(1)
-      const trendingRes: TMDBListResponse = await this.tmdbService.getTrending(1)
-      const popularRes: TMDBListResponse = await this.tmdbService.getPopularMovies(1)
-      const tvRes: TMDBListResponse = await this.tmdbService.getOnTheAirTv(1)
-
-      this.nowPlaying = nowPlayingRes.results
-      this.trending = trendingRes.results.slice(0, 8)
-      this.popularMovies = popularRes.results.slice(0, 8)
-      this.onAirTv = tvRes.results.slice(0, 8)
-      this.useMockData = false
-
-      this.isLoading = false
-      this.startCarousel()
-    } catch (e) {
-      const err = e as Error
-      console.error('TMDB API 加载失败，自动使用 Mock 数据: ' + err.message)
-      this.useMockData = true
-      this.hasError = false
-      this.nowPlaying = mockNowPlaying.results
-      this.trending = mockTrending.results.slice(0, 8)
-      this.popularMovies = mockPopularMovies.results.slice(0, 8)
-      this.onAirTv = mockOnAirTv.results.slice(0, 8)
-      this.isLoading = false
-      this.startCarousel()
-    }
+    this.useMockData = true
+    this.nowPlaying = mockNowPlaying.results
+    this.trending = mockTrending.results.slice(0, 8)
+    this.popularMovies = mockPopularMovies.results.slice(0, 8)
+    this.onAirTv = mockOnAirTv.results.slice(0, 8)
+    this.startCarousel()
   }
 
   private refreshRecommendations(): void {
@@ -131,56 +97,28 @@ struct HomePage {
   }
 
   private async navigateToPlayer(media: TMDBMedia): Promise<void> {
-    if (this.isLoadingTrailer) {
-      return
+    let videoUrl: string | Resource = ''
+
+    if (media.trailer_url !== undefined && media.trailer_url !== null) {
+      videoUrl = media.trailer_url
+    } else {
+      videoUrl = getTestVideoUrl(media.id)
     }
 
-    this.isLoadingTrailer = true
-
-    try {
-      let videoUrl: string | Resource = ''
-      const mediaType: string = media.media_type || (media.title ? 'movie' : 'tv')
-
-      if (!this.useMockData && this.tmdbService) {
-        try {
-          console.info('TMDB 正在获取预告片: ' + getMediaTitle(media) + ', id=' + media.id + ', type=' + mediaType)
-          const trailerUrl: string = await this.tmdbService.getTrailerUrl(media.id, mediaType)
-          console.info('TMDB 获取预告片成功: ' + trailerUrl)
-          videoUrl = trailerUrl
-        } catch (trailerErr) {
-          const err = trailerErr as Error
-          console.warn('TMDB 获取预告片失败，使用备用: ' + err.message)
-          if (media.trailer_url !== undefined && media.trailer_url !== null) {
-            videoUrl = media.trailer_url
-          } else {
-            videoUrl = getTestVideoUrl(media.id)
-          }
-        }
-      } else {
-        if (media.trailer_url !== undefined && media.trailer_url !== null) {
-          videoUrl = media.trailer_url
-        } else {
-          videoUrl = getTestVideoUrl(media.id)
-        }
+    router.pushUrl({
+      url: 'pages/home/VideoPlayerPage',
+      params: {
+        videoUrl: videoUrl,
+        title: getMediaTitle(media),
+        posterUrl: media.poster_path,
+        rating: media.vote_average,
+        year: getMediaYear(media),
+        overview: media.overview,
+        mediaType: media.media_type,
+        episodeCount: media.episode_count
       }
-
-      router.pushUrl({
-        url: 'pages/home/VideoPlayerPage',
-        params: {
-          videoUrl: videoUrl,
-          title: getMediaTitle(media),
-          posterUrl: media.poster_path,
-          rating: media.vote_average,
-          year: getMediaYear(media),
-          overview: media.overview
-        }
-      })
-      hilog.info(0, TAG, `Navigate to player: ${getMediaTitle(media)}`)
-    } catch (err) {
-      hilog.error(0, TAG, 'Failed to navigate to player')
-    } finally {
-      this.isLoadingTrailer = false
-    }
+    })
+    hilog.info(0, TAG, `Navigate to player: ${getMediaTitle(media)}`)
   }
 
   private getPosterResource(name: string): Resource | string {
@@ -245,25 +183,19 @@ struct HomePage {
       Column() {
         this.TopNavBar()
 
-        if (this.isLoading) {
-          this.LoadingView()
-        } else if (this.hasError) {
-          this.ErrorView()
-        } else {
-          Scroll() {
-            Column({ space: 24 }) {
-              // ========== 优化点2：板块分层重构 - 独立磨砂容器+均匀留白 ==========
-              this.TodayUpdates()
-              this.AIRecommendation()
-              this.CategoryIcons()
-              this.MovieSection('热门电影', this.popularMovies.slice(0, 4))
-              this.MovieSection('热播剧集', this.onAirTv.slice(0, 4))
-            }
-            .padding({ top: 24, bottom: 40 })
+        Scroll() {
+          Column({ space: 24 }) {
+            // ========== 优化点2：板块分层重构 - 独立磨砂容器+均匀留白 ==========
+            this.TodayUpdates()
+            this.AIRecommendation()
+            this.CategoryIcons()
+            this.MovieSection('热门电影', this.popularMovies.slice(0, 4))
+            this.MovieSection('热播剧集', this.onAirTv.slice(0, 4))
           }
-          .layoutWeight(1)
-          .scrollBar(BarState.Off)
+          .padding({ top: 24, bottom: 40 })
         }
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
       }
       .width('100%')
       .height('100%')
@@ -271,81 +203,6 @@ struct HomePage {
     .width('100%')
     .height('100%')
     .backgroundColor('#FFFAF5') // 浅米白页面底色
-  }
-
-  // LoadingView - 柔和加载状态
-  @Builder
-  LoadingView() {
-    Column() {
-      SakuraLoading()
-
-      Text('正在加载...')
-        .fontSize(FontSizes.caption)
-        .fontColor('#A0A0A8')
-        .margin({ top: Spacing.md })
-    }
-    .width('100%')
-    .layoutWeight(1)
-    .justifyContent(FlexAlign.Center)
-  }
-
-  // ErrorView - 柔和错误状态
-  @Builder
-  ErrorView() {
-    Column() {
-      Text('😢')
-        .fontSize(48)
-
-      Text('加载失败')
-        .fontSize(FontSizes.body)
-        .fontColor('#2D2D3A')
-        .margin({ top: Spacing.md })
-
-      Text('错误: ' + this.errorMsg)
-        .fontSize(FontSizes.caption)
-        .fontColor('#E8A0B0') // 低饱和粉红
-        .margin({ top: Spacing.sm })
-        .maxLines(3)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-      Row() {
-        Button('重新加载')
-          .fontSize(FontSizes.caption)
-          .fontColor(Color.White)
-          .linearGradient({
-            direction: GradientDirection.Right,
-            colors: [['#E8A0B0', 0], ['#A0C8D8', 1]] // 低饱和粉蓝渐变
-          })
-          .borderRadius(16)
-          .padding({ left: 24, right: 24, top: 10, bottom: 10 })
-          .onClick(() => {
-            this.loadAllData()
-          })
-
-        Button('使用Mock数据')
-          .fontSize(FontSizes.caption)
-          .fontColor('#E8A0B0')
-          .backgroundColor('rgba(232,160,176,0.12)') // 极淡低饱和粉
-          .backdropBlur(12)
-          .borderRadius(16)
-          .border({ width: 1, color: 'rgba(232,160,176,0.25)' })
-          .padding({ left: 24, right: 24, top: 10, bottom: 10 })
-          .margin({ left: Spacing.md })
-          .onClick(() => {
-            this.useMockData = true
-            this.hasError = false
-            this.nowPlaying = mockNowPlaying.results
-            this.trending = mockTrending.results.slice(0, 8)
-            this.popularMovies = mockPopularMovies.results.slice(0, 8)
-            this.onAirTv = mockOnAirTv.results.slice(0, 8)
-          })
-      }
-      .margin({ top: Spacing.lg })
-    }
-    .width('100%')
-    .layoutWeight(1)
-    .justifyContent(FlexAlign.Center)
-    .padding({ left: Spacing.lg, right: Spacing.lg })
   }
 
   // ========== 优化点4：顶部搜索栏优化 - 磨砂半透明+粉蓝渐变文字 ==========
@@ -668,10 +525,6 @@ struct HomePage {
           Image($r('app.media.shuaxin'))
             .width(14)
             .height(14)
-            .linearGradient({
-              direction: GradientDirection.Right,
-              colors: [['#E8A0B0', 0], ['#A0C8D8', 1]] // 渐变图标
-            })
 
           Text('换一批')
             .fontSize(FontSizes.caption)

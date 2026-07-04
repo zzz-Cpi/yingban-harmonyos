@@ -17,6 +17,8 @@ interface RouteParams {
   rating?: number
   year?: string
   overview?: string
+  mediaType?: string
+  episodeCount?: number
 }
 
 interface PreparedEvent {
@@ -65,6 +67,9 @@ struct VideoPlayerPage {
   // 新增：分集数据
   @State private episodes: EpisodeInfo[] = []
   @State private currentEpisode: number = 1
+  // 新增：媒体类型（movie/tv）
+  @State private mediaType: string = 'movie'
+  @State private episodeCount: number = 0
   // 新增：推荐数据
   @State private similarMovies: TMDBMedia[] = []
   @State private actorMovies: TMDBMedia[] = []
@@ -99,10 +104,12 @@ struct VideoPlayerPage {
     }
   }
 
-  // 退出全屏时恢复状态栏
+  // 退出全屏时恢复状态栏和竖屏方向
   private exitFullscreenRestore(): void {
     if (this.windowClass && this.isFullscreen) {
       try {
+        this.windowClass.setPreferredOrientation(window.Orientation.PORTRAIT)
+        this.windowClass.setWindowLayoutFullScreen(false)
         this.windowClass.setWindowSystemBarProperties({
           statusBarColor: '#00000000',
           statusBarContentColor: 'dark',
@@ -128,6 +135,8 @@ struct VideoPlayerPage {
       this.rating = params.rating || 0
       this.year = params.year || ''
       this.overview = params.overview || ''
+      this.mediaType = params.mediaType || 'movie'
+      this.episodeCount = params.episodeCount || 0
     }
 
     if (!hasVideo) {
@@ -137,14 +146,26 @@ struct VideoPlayerPage {
   }
 
   private initMockData(): void {
-    // 初始化分集数据
+    // 根据媒体类型初始化分集数据
     this.episodes = []
-    for (let i = 1; i <= 15; i++) {
+    if (this.mediaType === 'tv') {
+      // 电视剧：显示1-15集（最多显示15集）
+      const maxEpisodes = Math.min(this.episodeCount, 15) || 15
+      for (let i = 1; i <= maxEpisodes; i++) {
+        this.episodes.push({
+          index: i,
+          title: `第${i}集`,
+          isWatched: i < 5,
+          isPlaying: i === 1
+        })
+      }
+    } else {
+      // 电影：只显示正片选项
       this.episodes.push({
-        index: i,
-        title: `第${i}集`,
-        isWatched: i < 5,
-        isPlaying: i === 1
+        index: 1,
+        title: '正片',
+        isWatched: false,
+        isPlaying: true
       })
     }
 
@@ -215,34 +236,38 @@ struct VideoPlayerPage {
   private toggleFullscreen(): void {
     this.fullscreenBtnPressed = true
     setTimeout(() => { this.fullscreenBtnPressed = false }, 150)
-    this.isFullscreen = !this.isFullscreen
-    this.showControls = true
 
-    // 真正的全屏控制：隐藏/显示状态栏和导航栏
-    if (this.windowClass) {
-      try {
-        if (this.isFullscreen) {
-          // 进入全屏：隐藏状态栏和导航栏
-          this.windowClass.setWindowSystemBarProperties({
-            statusBarColor: '#00000000',
-            statusBarContentColor: 'light',
-            navigationBarColor: '#000000',
-            navigationBarContentColor: 'light'
-          })
-          this.windowClass.setWindowLayoutFullScreen(true)
-        } else {
-          // 退出全屏：恢复状态栏和导航栏
-          this.windowClass.setWindowLayoutFullScreen(false)
-          this.windowClass.setWindowSystemBarProperties({
-            statusBarColor: '#00000000',
-            statusBarContentColor: 'dark',
-            navigationBarColor: '#FFFFFF',
-            navigationBarContentColor: 'dark'
-          })
-        }
-      } catch (e) {
-        hilog.warn(0, TAG, 'Toggle fullscreen system bar failed')
+    if (!this.windowClass) {
+      hilog.warn(0, TAG, 'Window class is null, cannot toggle fullscreen')
+      return
+    }
+
+    try {
+      if (!this.isFullscreen) {
+        // 进入全屏：强制横屏 + 隐藏状态栏和导航栏
+        this.windowClass.setPreferredOrientation(window.Orientation.LANDSCAPE)
+        this.windowClass.setWindowSystemBarProperties({
+          statusBarColor: '#00000000',
+          statusBarContentColor: 'light',
+          navigationBarColor: '#000000',
+          navigationBarContentColor: 'light'
+        })
+        this.windowClass.setWindowLayoutFullScreen(true)
+      } else {
+        // 退出全屏：恢复竖屏 + 恢复状态栏和导航栏
+        this.windowClass.setPreferredOrientation(window.Orientation.PORTRAIT)
+        this.windowClass.setWindowLayoutFullScreen(false)
+        this.windowClass.setWindowSystemBarProperties({
+          statusBarColor: '#00000000',
+          statusBarContentColor: 'dark',
+          navigationBarColor: '#FFFFFF',
+          navigationBarContentColor: 'dark'
+        })
       }
+      this.isFullscreen = !this.isFullscreen
+      this.showControls = true
+    } catch (e) {
+      hilog.warn(0, TAG, 'Toggle fullscreen failed: ' + (e as Error).message)
     }
   }
 
@@ -402,9 +427,6 @@ struct VideoPlayerPage {
                 .width(20)
                 .height(20)
                 .fillColor(Color.White)
-                .onClick(() => {
-                  this.onBack()
-                })
             }
             .width(36)
             .height(36)
@@ -412,6 +434,9 @@ struct VideoPlayerPage {
             .backdropBlur(10)
             .borderRadius(18)
             .justifyContent(FlexAlign.Center)
+            .onClick(() => {
+              this.onBack()
+            })
 
             Text(this.title)
               .fontSize(FontSizes.body)
@@ -520,7 +545,8 @@ struct VideoPlayerPage {
 
                   // isPlaying=true 表示正在播放，此时应显示暂停图标（点击后暂停）
                   // isPlaying=false 表示已暂停，此时应显示播放图标（点击后播放）
-                  Image(this.isPlaying ? $r('app.media.icon_pause') : $r('app.media.icon_play'))
+                  Image(this.isPlaying ? $r('app.media.111') : $r('app.media.222' +
+                    ''))
                     .width(22)
                     .height(22)
                     .objectFit(ImageFit.Contain)

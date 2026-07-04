@@ -31,6 +31,14 @@
     {
       "name": "access_service_dm_reason",
       "value": "用于发现附近鸿蒙设备以创建观影房间"
+    },
+    {
+      "name": "drama_widget_display_name",
+      "value": "追剧日历"
+    },
+    {
+      "name": "drama_widget_desc",
+      "value": "追剧日历桌面小组件，实时显示剧集更新状态"
     }
   ]
 }
